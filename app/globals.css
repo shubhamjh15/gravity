@@ -1,0 +1,455 @@
+@import "tailwindcss";
+
+/* shadcn/ui needs this plugin for dark-mode variants driven by a class. */
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   GRAVITY DESIGN TOKENS — "Molten Crimson / Ember"
+   Dark cinematic esports. Single accent family (crimson -> ember).
+   Player/event side = hot crimson. Admin/community side = cooler ember/garnet.
+   Everything here is a token. NO hardcoded hex/px in components.
+   ============================================================================ */
+
+:root {
+  /* ---- Raw brand ramp (crimson -> ember) ---------------------------------- */
+  --gv-crimson-50: #fff1f3;
+  --gv-crimson-100: #ffe0e5;
+  --gv-crimson-200: #ffc6cf;
+  --gv-crimson-300: #ff9cac;
+  --gv-crimson-400: #ff6478;
+  --gv-crimson-500: #ff2d55; /* primary accent */
+  --gv-crimson-600: #ed1247;
+  --gv-crimson-700: #c80a3a;
+  --gv-crimson-800: #a50d35;
+  --gv-crimson-900: #881131;
+  --gv-crimson-950: #4b0317;
+
+  --gv-ember-400: #ff8a4d;
+  --gv-ember-500: #ff6a3d; /* secondary accent (gradient end) */
+  --gv-ember-600: #f0501f;
+
+  /* ---- Neutral surfaces (blood-black) ------------------------------------- */
+  --gv-void: #08070a; /* deepest background */
+  --gv-base: #0b0a0c; /* app background */
+  --gv-surface: #110f13; /* card / panel */
+  --gv-surface-2: #16121a; /* raised panel */
+  --gv-surface-3: #1d1822; /* hover / popover */
+  --gv-line: #262030; /* hairline border */
+  --gv-line-strong: #352b40;
+
+  --gv-text: #f5f5f7;
+  --gv-text-muted: #a59faf;
+  --gv-text-dim: #7a7480;
+
+  /* ---- Status (kept inside the warm family where possible) ---------------- */
+  --gv-success: #34d399;
+  --gv-warning: #fbbf24;
+  --gv-danger: #ff2d55;
+  --gv-info: #60a5fa;
+
+  /* ---- Glows (accent-only; the cinematic signature) ----------------------- */
+  --gv-glow-crimson: 0 0 0 1px rgba(255, 45, 85, 0.18),
+    0 8px 30px -8px rgba(255, 45, 85, 0.45);
+  --gv-glow-ember: 0 0 0 1px rgba(255, 106, 61, 0.18),
+    0 8px 30px -8px rgba(255, 106, 61, 0.4);
+  --gv-glow-soft: 0 10px 40px -12px rgba(0, 0, 0, 0.8);
+
+  /* ---- Gradients ---------------------------------------------------------- */
+  --gv-grad-accent: linear-gradient(
+    135deg,
+    var(--gv-crimson-500) 0%,
+    var(--gv-ember-500) 100%
+  );
+  --gv-grad-accent-soft: linear-gradient(
+    135deg,
+    rgba(255, 45, 85, 0.16) 0%,
+    rgba(255, 106, 61, 0.12) 100%
+  );
+  --gv-grad-surface: linear-gradient(
+    180deg,
+    var(--gv-surface-2) 0%,
+    var(--gv-surface) 100%
+  );
+
+  /* ---- Radii (8px-grid friendly) ------------------------------------------ */
+  --radius: 0.75rem; /* shadcn base radius -> 12px */
+  --gv-radius-sm: 0.5rem;
+  --gv-radius-md: 0.75rem;
+  --gv-radius-lg: 1rem;
+  --gv-radius-xl: 1.5rem;
+
+  /* ---- Motion ------------------------------------------------------------- */
+  --gv-ease: cubic-bezier(0.16, 1, 0.3, 1); /* expo-out, our default */
+  --gv-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --gv-dur-fast: 150ms;
+  --gv-dur: 250ms;
+  --gv-dur-slow: 450ms;
+
+  /* ---- Fonts (wired from next/font in layout.tsx) ------------------------- */
+  --font-display: var(--font-gv-display), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-gv-sans), system-ui, sans-serif;
+  --font-mono: var(--font-gv-mono), ui-monospace, monospace;
+
+  /* ========================================================================
+     shadcn/ui semantic tokens — mapped onto the GRAVITY palette so every
+     shadcn component inherits the theme automatically. We are dark-only,
+     so :root already carries the dark values.
+     ======================================================================== */
+  --background: var(--gv-base);
+  --foreground: var(--gv-text);
+
+  --card: var(--gv-surface);
+  --card-foreground: var(--gv-text);
+
+  --popover: var(--gv-surface-3);
+  --popover-foreground: var(--gv-text);
+
+  --primary: var(--gv-crimson-500);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--gv-surface-2);
+  --secondary-foreground: var(--gv-text);
+
+  --muted: var(--gv-surface-2);
+  --muted-foreground: var(--gv-text-muted);
+
+  --accent: var(--gv-surface-3);
+  --accent-foreground: var(--gv-text);
+
+  --destructive: var(--gv-danger);
+  --destructive-foreground: #ffffff;
+
+  --border: var(--gv-line);
+  --input: var(--gv-line);
+  --ring: var(--gv-crimson-500);
+
+  --chart-1: var(--gv-crimson-500);
+  --chart-2: var(--gv-ember-500);
+  --chart-3: #c80a3a;
+  --chart-4: #fbbf24;
+  --chart-5: #34d399;
+}
+
+/* We ship dark-only, but mirror tokens under .dark so shadcn snippets that
+   assume a .dark scope still work unchanged. */
+.dark {
+  --background: var(--gv-base);
+  --foreground: var(--gv-text);
+  --card: var(--gv-surface);
+  --card-foreground: var(--gv-text);
+  --popover: var(--gv-surface-3);
+  --popover-foreground: var(--gv-text);
+  --primary: var(--gv-crimson-500);
+  --primary-foreground: #ffffff;
+  --secondary: var(--gv-surface-2);
+  --secondary-foreground: var(--gv-text);
+  --muted: var(--gv-surface-2);
+  --muted-foreground: var(--gv-text-muted);
+  --accent: var(--gv-surface-3);
+  --accent-foreground: var(--gv-text);
+  --destructive: var(--gv-danger);
+  --destructive-foreground: #ffffff;
+  --border: var(--gv-line);
+  --input: var(--gv-line);
+  --ring: var(--gv-crimson-500);
+}
+
+/* ============================================================================
+   Tailwind v4 @theme — expose tokens as utilities (bg-*, text-*, border-*,
+   shadow-*, rounded-*, font-*, ease-*). This replaces tailwind.config.js.
+   ============================================================================ */
+@theme inline {
+  /* semantic (shadcn) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* GRAVITY brand utilities */
+  --color-void: var(--gv-void);
+  --color-surface: var(--gv-surface);
+  --color-surface-2: var(--gv-surface-2);
+  --color-surface-3: var(--gv-surface-3);
+  --color-line: var(--gv-line);
+  --color-line-strong: var(--gv-line-strong);
+  --color-text-muted: var(--gv-text-muted);
+  --color-text-dim: var(--gv-text-dim);
+
+  --color-crimson-50: var(--gv-crimson-50);
+  --color-crimson-100: var(--gv-crimson-100);
+  --color-crimson-200: var(--gv-crimson-200);
+  --color-crimson-300: var(--gv-crimson-300);
+  --color-crimson-400: var(--gv-crimson-400);
+  --color-crimson-500: var(--gv-crimson-500);
+  --color-crimson-600: var(--gv-crimson-600);
+  --color-crimson-700: var(--gv-crimson-700);
+  --color-crimson-800: var(--gv-crimson-800);
+  --color-crimson-900: var(--gv-crimson-900);
+  --color-crimson-950: var(--gv-crimson-950);
+  --color-ember-400: var(--gv-ember-400);
+  --color-ember-500: var(--gv-ember-500);
+  --color-ember-600: var(--gv-ember-600);
+
+  --color-success: var(--gv-success);
+  --color-warning: var(--gv-warning);
+  --color-danger: var(--gv-danger);
+  --color-info: var(--gv-info);
+
+  /* radii */
+  --radius-sm: var(--gv-radius-sm);
+  --radius-md: var(--gv-radius-md);
+  --radius-lg: var(--gv-radius-lg);
+  --radius-xl: var(--gv-radius-xl);
+
+  /* shadows / glows */
+  --shadow-glow: var(--gv-glow-crimson);
+  --shadow-glow-ember: var(--gv-glow-ember);
+  --shadow-soft: var(--gv-glow-soft);
+
+  /* fonts */
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* motion easings as named utilities (ease-gv, ease-gv-in-out) */
+  --ease-gv: var(--gv-ease);
+  --ease-gv-in-out: var(--gv-ease-in-out);
+
+  /* custom keyframe animations exposed as animate-* */
+  --animate-shimmer: shimmer 2.5s linear infinite;
+  --animate-aurora: aurora 18s ease-in-out infinite alternate;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+  --animate-marquee: marquee 30s linear infinite;
+}
+
+/* ============================================================================
+   Base layer
+   ============================================================================ */
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv01", "cv11";
+    /* faint cinematic radial vignette + grain-ready base */
+    background-image: radial-gradient(
+        1200px 600px at 50% -10%,
+        rgba(255, 45, 85, 0.06),
+        transparent 60%
+      ),
+      radial-gradient(
+        900px 500px at 100% 0%,
+        rgba(255, 106, 61, 0.05),
+        transparent 55%
+      );
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background-color: var(--gv-crimson-500);
+    color: #fff;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Themed scrollbar (matches the crimson family, stays subtle). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gv-line-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--gv-line-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--gv-crimson-700);
+  }
+
+  /* Respect reduced motion everywhere. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================================
+   Reusable component utilities (used across the app — one source)
+   ============================================================================ */
+@layer components {
+  /* Gradient text in the brand ramp. */
+  .gv-text-gradient {
+    background: var(--gv-grad-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* A raised, glassy panel — the base for cards/dialogs that need depth. */
+  .gv-panel {
+    background-image: var(--gv-grad-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--gv-glow-soft);
+  }
+
+  /* Accent-bordered hero card (event/community cards extend this). */
+  .gv-card-accent {
+    position: relative;
+    border-radius: var(--radius-lg);
+    background-image: var(--gv-grad-surface);
+    border: 1px solid var(--color-border);
+    transition: transform var(--gv-dur) var(--gv-ease),
+      box-shadow var(--gv-dur) var(--gv-ease),
+      border-color var(--gv-dur) var(--gv-ease);
+  }
+  .gv-card-accent:hover {
+    border-color: rgba(255, 45, 85, 0.4);
+    box-shadow: var(--gv-glow-crimson);
+    transform: translateY(-2px);
+  }
+
+  /* Hairline divider with a faint accent center (used in section breaks). */
+  .gv-rule {
+    height: 1px;
+    width: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--gv-line-strong) 20%,
+      var(--gv-crimson-700) 50%,
+      var(--gv-line-strong) 80%,
+      transparent
+    );
+    opacity: 0.6;
+  }
+
+  /* Subtle moving grid backdrop for hero sections. */
+  .gv-grid-bg {
+    background-image: linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.035) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(
+      ellipse 80% 60% at 50% 0%,
+      #000 40%,
+      transparent 100%
+    );
+  }
+
+  /* Focus ring that matches the theme (accessibility). */
+  .gv-focus {
+    outline: none;
+  }
+  .gv-focus:focus-visible {
+    outline: 2px solid var(--gv-crimson-500);
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================================================
+   Keyframes (referenced by --animate-* above)
+   ============================================================================ */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes aurora {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate3d(3%, -2%, 0) scale(1.08);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(-2%, 2%, 0) scale(1.04);
+    opacity: 0.6;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 45, 85, 0);
+  }
+  50% {
+    box-shadow: 0 0 28px 2px rgba(255, 45, 85, 0.35);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
