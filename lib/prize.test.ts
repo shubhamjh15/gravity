@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rupeesToPaise, paise } from "./money";
+import { rupeesToPaise } from "./money";
 import {
   validateStructure,
   assertValidStructure,
