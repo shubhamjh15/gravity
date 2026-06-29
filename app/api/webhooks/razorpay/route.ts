@@ -128,7 +128,7 @@ async function handleEvent(
       // test charges valid even without notes.
       const sourceType = notes.source_type ?? "manual";
 
-      await supabase.rpc("write_ledger_entry", {
+      const { data: ledgerId } = await supabase.rpc("write_ledger_entry", {
         p_entry_type: "charge",
         p_source_type: sourceType,
         p_direction: "in",
@@ -144,6 +144,40 @@ async function handleEvent(
         p_razorpay_payment_id: payment.id,
         p_meta: { order_id: payment.order_id, method: payment.method },
       });
+
+      // Settlement side-effects by source type.
+      if (sourceType === "event_entry" && notes.registration_id) {
+        // Confirm the held slot: flip to 'paid' (or 'confirmed' if no approval).
+        const { data: ev } = await supabase
+          .from("events")
+          .select("requires_approval")
+          .eq("id", notes.event_id ?? "")
+          .single();
+        const newStatus = ev?.requires_approval ? "paid" : "confirmed";
+        await supabase
+          .from("registrations")
+          .update({
+            status: newStatus,
+            slot_held_until: null,
+            ledger_entry_id: (ledgerId as unknown as string) ?? null,
+          })
+          .eq("id", notes.registration_id)
+          .in("status", ["slot_held", "paid"]);
+      }
+
+      if (sourceType === "membership" && notes.membership_id) {
+        await supabase
+          .from("memberships")
+          .update({ status: "active", ledger_entry_id: (ledgerId as unknown as string) ?? null })
+          .eq("id", notes.membership_id);
+      }
+
+      if (sourceType === "store" && notes.store_order_id) {
+        await supabase
+          .from("store_orders")
+          .update({ status: "paid" })
+          .eq("id", notes.store_order_id);
+      }
       return;
     }
 
