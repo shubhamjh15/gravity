@@ -1,4 +1,4 @@
-import { SiteNav } from "@/components/gravity/site-nav";
+import { SiteNavServer } from "@/components/gravity/site-nav-server";
 import { SiteFooter } from "@/components/gravity/site-footer";
 import { requireUser } from "@/lib/auth";
 
@@ -16,7 +16,7 @@ export default async function PlayerLayout({
 
   return (
     <>
-      <SiteNav />
+      <SiteNavServer />
       <main className="flex-1 pt-16">{children}</main>
       <SiteFooter />
     </>

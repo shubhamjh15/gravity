@@ -1,4 +1,4 @@
-import { SiteNav } from "@/components/gravity/site-nav";
+import { SiteNavServer } from "@/components/gravity/site-nav-server";
 import { SiteFooter } from "@/components/gravity/site-footer";
 
 /**
@@ -12,7 +12,7 @@ export default function PublicLayout({
 }) {
   return (
     <>
-      <SiteNav />
+      <SiteNavServer />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </>

@@ -10,7 +10,7 @@
  *
  * The nine surfaces from the plan map to these links; pages fill in per phase.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -33,7 +33,7 @@ const NAV_LINKS = [
   { href: "/about", label: "About" },
 ] as const;
 
-export function SiteNav() {
+export function SiteNav({ authSlot }: { authSlot?: ReactNode }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -74,7 +74,7 @@ export function SiteNav() {
                 >
                   {link.label}
                   {active ? (
-                    <span className="absolute inset-x-3 -bottom-px h-px bg-gradient-to-r from-transparent via-crimson-500 to-transparent" />
+                    <span className="absolute inset-x-3 -bottom-px h-px bg-linear-to-r from-transparent via-crimson-500 to-transparent" />
                   ) : null}
                 </Link>
               </li>
@@ -83,12 +83,18 @@ export function SiteNav() {
         </ul>
 
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href={"/login" as never}>Log in</Link>
-          </Button>
-          <Button asChild variant="gradient" size="sm" className="hidden sm:inline-flex">
-            <Link href={"/login" as never}>Enter the Arena</Link>
-          </Button>
+          {authSlot ? (
+            authSlot
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href={"/login" as never}>Log in</Link>
+              </Button>
+              <Button asChild variant="gradient" size="sm" className="hidden sm:inline-flex">
+                <Link href={"/login" as never}>Enter the Arena</Link>
+              </Button>
+            </>
+          )}
 
           {/* mobile menu */}
           <Sheet open={open} onOpenChange={setOpen}>
