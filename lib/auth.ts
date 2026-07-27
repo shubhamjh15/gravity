@@ -2,6 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/env";
 import type { User } from "@supabase/supabase-js";
 
 /**
@@ -25,8 +26,9 @@ function redirectTo(path: string): never {
 
 export type Role = "player" | "organizer" | "superadmin";
 
-/** The logged-in user, or null. */
+/** The logged-in user, or null. Returns null when Supabase isn't configured. */
 export async function getUser(): Promise<User | null> {
+  if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -91,6 +93,15 @@ export async function requireRole(
  * the user + their roles + boolean shortcuts.
  */
 export async function getAuthContext() {
+  if (!isSupabaseConfigured()) {
+    return {
+      user: null,
+      roles: [] as Role[],
+      isSuperadmin: false,
+      isOrganizer: false,
+    };
+  }
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
