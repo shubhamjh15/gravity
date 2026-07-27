@@ -17,6 +17,15 @@ import type { Database } from "@/lib/supabase/types";
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Before Supabase keys are configured (e.g. a fresh clone / UI preview), skip
+  // session work so the public site still renders instead of 500-ing.
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return response;
+  }
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

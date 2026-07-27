@@ -17,9 +17,15 @@ import type { Database } from "@/lib/supabase/types";
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
+  // Placeholders keep the client constructible before keys are set (UI preview
+  // / fresh clone). Queries then fail soft and pages render their empty states,
+  // instead of the whole request 500-ing.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
+
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anon,
     {
       cookies: {
         getAll() {
