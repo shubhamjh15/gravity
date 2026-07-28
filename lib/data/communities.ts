@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/env";
 import type { CommunityCardData } from "@/components/gravity/community/community-card";
 
 /** Server data helpers for communities. */
@@ -10,6 +11,7 @@ export async function listCommunities(opts: {
   page?: number;
   pageSize?: number;
 } = {}): Promise<{ communities: CommunityCardData[]; total: number }> {
+  if (!isSupabaseConfigured()) return { communities: [], total: 0 };
   const supabase = await createSupabaseServerClient();
   const page = Math.max(1, opts.page ?? 1);
   const pageSize = Math.min(48, opts.pageSize ?? 12);
@@ -64,6 +66,7 @@ export async function listCommunities(opts: {
 }
 
 export async function getCommunityBySlug(slug: string) {
+  if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
   const { data: community } = await supabase
     .from("communities")

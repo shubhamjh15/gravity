@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/env";
 import type { EventCardData } from "@/components/gravity/events/event-card";
 
 /**
@@ -38,6 +39,7 @@ export async function listEvents(filters: EventFilters = {}): Promise<{
   events: EventCardData[];
   total: number;
 }> {
+  if (!isSupabaseConfigured()) return { events: [], total: 0 };
   const supabase = await createSupabaseServerClient();
   const page = Math.max(1, filters.page ?? 1);
   const pageSize = Math.min(48, filters.pageSize ?? 12);
@@ -107,6 +109,7 @@ export async function listEvents(filters: EventFilters = {}): Promise<{
 }
 
 export async function getEventBySlug(slug: string) {
+  if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
   const { data: event } = await supabase
     .from("public_events")
