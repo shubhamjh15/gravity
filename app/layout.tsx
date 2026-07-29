@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { SmoothScroll } from "@/components/gravity/smooth-scroll";
 import "./globals.css";
 
 /**
@@ -81,7 +82,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
-        {children}
+        <SmoothScroll>{children}</SmoothScroll>
         <Toaster
           position="top-center"
           theme="dark"
