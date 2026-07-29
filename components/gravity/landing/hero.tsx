@@ -83,9 +83,9 @@ export function Hero() {
 
           <h1
             data-hero-word
-            className="mt-6 font-display text-[18vw] leading-[0.82] tracking-tighter sm:text-[16vw] lg:text-[180px]"
+            className="mt-6 font-display text-[16vw] leading-[1.05] tracking-[0.02em] sm:text-[15vw] lg:text-[168px]"
           >
-            <span className="inline-block overflow-hidden">
+            <span className="inline-block pb-[0.08em] align-bottom">
               <span className="gv-text-gradient inline-block">GRAVITY</span>
             </span>
           </h1>

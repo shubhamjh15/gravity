@@ -54,7 +54,7 @@ export function Pin({ steps, heightVh = 300, className, children }: PinProps) {
     <div
       ref={ref}
       className={cn("relative", className)}
-      style={{ minHeight: prefersReducedMotion() ? undefined : `${heightVh}vh` }}
+      style={{ minHeight: `${heightVh}vh` }}
     >
       <div
         ref={innerRef}
