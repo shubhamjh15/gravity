@@ -76,12 +76,12 @@ export default function RootLayout({
     <html
       lang="en"
       // `dark` class lets shadcn .dark snippets work; we are dark-only.
-      // data-scroll-behavior smooth is opt-in in Next 16 for SPA nav scroll.
-      className={`dark ${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} h-full antialiased`}
-      data-scroll-behavior="smooth"
+      // NOTE: no h-full / data-scroll-behavior here — Lenis controls scrolling
+      // (see SmoothScroll); those would fight it and break ScrollTrigger.
+      className={`dark ${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
+      <body className="flex min-h-dvh flex-col bg-background font-sans text-foreground">
         <SmoothScroll>{children}</SmoothScroll>
         <Toaster
           position="top-center"
