@@ -236,6 +236,14 @@
   --animate-float: float 6s ease-in-out infinite;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
   --animate-marquee: marquee 30s linear infinite;
+  --animate-spin-slow: gv-spin 18s linear infinite;
+  --animate-spin-rev: gv-spin 26s linear infinite reverse;
+  --animate-dash-flow: gv-dash-flow 2.4s linear infinite;
+  --animate-draw-loop: gv-draw-loop 4s ease-in-out infinite;
+  --animate-twinkle: gv-twinkle 2.6s ease-in-out infinite;
+  --animate-bob: gv-bob 4.5s ease-in-out infinite;
+  --animate-rise: gv-rise 3s ease-out infinite;
+  --animate-breathe: gv-breathe 3.4s ease-in-out infinite;
 }
 
 /* ============================================================================
@@ -451,5 +459,85 @@
   }
   100% {
     transform: translateX(-50%);
+  }
+}
+
+/* ── SVG "alive" keyframes ─────────────────────────────────────────────── */
+
+/* slow continuous rotation (orbit rings, halos) */
+@keyframes gv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* dashes flowing along a path — reads as data/energy moving */
+@keyframes gv-dash-flow {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+/* a stroke drawing itself on, looping */
+@keyframes gv-draw-loop {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  55%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* twinkling particles / sparks */
+@keyframes gv-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+/* gentle vertical bob with a hint of scale */
+@keyframes gv-bob {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.04);
+  }
+}
+
+/* a value rising up and fading (coins, numbers) */
+@keyframes gv-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  20%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(1.05);
+  }
+}
+
+/* breathing scale for nodes/cores */
+@keyframes gv-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
   }
 }
