@@ -30,8 +30,9 @@ export default async function AdminUsersPage() {
     <div className="mx-auto max-w-5xl">
       <h1 className="font-display text-3xl tracking-tight">Users &amp; Roles</h1>
       <p className="mt-1 text-sm text-text-muted">
-        Promote players to organizers, or grant admin access. Every change is
-        audited.
+        Promote players to organizers, or grant admin access. Every role change
+        is audited — and so is every PII reveal, which is fetched only when you
+        click it, never loaded with the page.
       </p>
 
       <div className="mt-8 overflow-hidden rounded-lg border border-line">
