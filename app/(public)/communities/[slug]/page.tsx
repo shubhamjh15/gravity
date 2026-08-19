@@ -11,6 +11,14 @@ import { publicEnv } from "@/lib/env";
 import { JoinButton } from "@/components/gravity/community/join-button";
 import { CommunityChat } from "@/components/gravity/community/community-chat";
 import { CommunityFeed } from "@/components/gravity/community/community-feed";
+import {
+  ElitePanel,
+  type EliteApplication,
+} from "@/components/gravity/community/elite-panel";
+import {
+  CommunityAdminPanel,
+  type CommunityCode,
+} from "@/components/gravity/community/community-admin-panel";
 import { Spotlight } from "@/components/gravity/spotlight";
 import {
   Tabs,
@@ -48,15 +56,17 @@ export default async function CommunityDetailPage({
 
   // Membership + name map.
   let membershipStatus: string | undefined;
+  let membershipRole: string | undefined;
   if (user) {
     const supabase = await createSupabaseServerClient();
     const { data: m } = await supabase
       .from("community_members")
-      .select("status")
+      .select("status, role")
       .eq("community_id", community.id)
       .eq("user_id", user.id)
       .maybeSingle();
     membershipStatus = m?.status;
+    membershipRole = m?.role;
   }
 
   const memberIds = [...new Set([...members.map((m) => m.user_id), ...posts.map((p) => p.author_id)])];
@@ -72,6 +82,43 @@ export default async function CommunityDetailPage({
   const pic = url("avatars", community.profile_pic_path);
   const isMember = membershipStatus === "active";
   const isOwner = user?.id === community.owner_id;
+
+  // Elite tier (ROADMAP 3.7). RLS scopes the applications read: an applicant
+  // gets their own row, the owner gets the whole queue, everyone else nothing.
+  const [elitePolicyRes, eliteAppsRes] = await Promise.all([
+    supabase
+      .from("elite_policies")
+      .select("requires_gov_id, min_kill_ratio, rules")
+      .eq("community_id", community.id)
+      .maybeSingle(),
+    user
+      ? supabase
+          .from("elite_applications")
+          .select("id, user_id, status, kill_ratio_claimed, note, review_note")
+          .eq("community_id", community.id)
+          .is("deleted_at", null)
+      : Promise.resolve({ data: [] as EliteApplication[] }),
+  ]);
+
+  const eliteApps = (eliteAppsRes.data ?? []) as EliteApplication[];
+  const eliteQueue: EliteApplication[] = eliteApps.map((a) => ({
+    ...a,
+    applicant_name: nameMap[a.user_id] ?? "Player",
+  }));
+  const myEliteApplication =
+    eliteQueue.find((a) => a.user_id === user?.id) ?? null;
+
+  // Owner-only tools (ROADMAP 3.8). Codes are scoped to this community; RLS
+  // restricts writes to the creator, so this read is just for the listing.
+  const { data: codeRows } = isOwner
+    ? await supabase
+        .from("referral_codes")
+        .select("id, code, discount_kind, discount_value, max_uses, used_count, is_active")
+        .eq("scope", "community")
+        .eq("scope_id", community.id)
+        .order("created_at", { ascending: false })
+    : { data: [] as CommunityCode[] };
+  const communityCodes = (codeRows ?? []) as CommunityCode[];
 
   return (
     <article className="pb-24">
@@ -117,12 +164,13 @@ export default async function CommunityDetailPage({
           </div>
           <div className="w-full sm:w-56">
             {isOwner ? (
-              <Link
-                href={`/communities/${community.slug}/manage` as never}
-                className="block w-full rounded-lg border border-line bg-surface-2 px-6 py-3 text-center font-semibold transition-colors hover:border-crimson-500"
-              >
-                Manage
-              </Link>
+              // Owner tools live in the Manage tab below. This used to link to
+              // /communities/[slug]/manage, a route that was never built — a
+              // 404 for every community owner.
+              <p className="rounded-lg border border-line bg-surface-2 px-6 py-3 text-center text-sm text-text-muted">
+                You own this community — see the{" "}
+                <span className="font-semibold text-crimson-300">Manage</span> tab.
+              </p>
             ) : user ? (
               <JoinButton
                 communityId={community.id}
@@ -152,7 +200,9 @@ export default async function CommunityDetailPage({
               <TabsTrigger value="feed">Feed</TabsTrigger>
               <TabsTrigger value="events">Events</TabsTrigger>
               <TabsTrigger value="chat">Chat</TabsTrigger>
+              <TabsTrigger value="elite">Elite</TabsTrigger>
               <TabsTrigger value="rules">Rules</TabsTrigger>
+              {isOwner ? <TabsTrigger value="manage">Manage</TabsTrigger> : null}
             </TabsList>
 
             <TabsContent value="feed" className="mt-6">
@@ -211,6 +261,27 @@ export default async function CommunityDetailPage({
                 <p className="text-sm text-text-muted">Log in and join to chat.</p>
               )}
             </TabsContent>
+
+            <TabsContent value="elite" className="mt-6">
+              <ElitePanel
+                communityId={community.id}
+                isOwner={isOwner}
+                isActiveMember={isMember}
+                isElite={membershipRole === "elite"}
+                policy={elitePolicyRes.data ?? null}
+                myApplication={myEliteApplication}
+                queue={eliteQueue}
+              />
+            </TabsContent>
+
+            {isOwner ? (
+              <TabsContent value="manage" className="mt-6">
+                <CommunityAdminPanel
+                  communityId={community.id}
+                  codes={communityCodes}
+                />
+              </TabsContent>
+            ) : null}
 
             <TabsContent value="rules" className="mt-6">
               <div className="gv-panel p-6">
