@@ -1,105 +1,127 @@
 import type { Metadata } from "next";
-import { ShoppingBag } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { formatPaise, paise, type Paise } from "@/lib/money";
+import {
+  ProductManager,
+  type ProductView,
+  type VariantView,
+} from "@/components/gravity/admin/product-manager";
+import {
+  OrderManager,
+  type OrderView,
+} from "@/components/gravity/admin/order-manager";
 
 export const metadata: Metadata = { title: "Store Admin", robots: { index: false } };
 
+/**
+ * Store console — catalog CRUD (5.2) and manual delivery progression (5.5).
+ *
+ * Products, variants and inventory are fetched separately and stitched here so
+ * the client component receives one already-shaped tree rather than doing joins
+ * in the browser.
+ */
 export default async function AdminStorePage() {
   const supabase = await createSupabaseServerClient();
-  const [productsRes, ordersRes] = await Promise.all([
+
+  const [productsRes, variantsRes, inventoryRes, ordersRes] = await Promise.all([
     supabase
       .from("store_products")
-      .select("id, name, mrp_paise, sale_price_paise, is_active")
+      .select("id, name, slug, description, mrp_paise, sale_price_paise, is_active, allow_partial")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase
+      .from("store_variants")
+      .select("id, product_id, sku, name, price_paise")
+      .order("name", { ascending: true }),
+    supabase
+      .from("store_inventory")
+      .select("variant_id, stock, low_stock_threshold"),
+    supabase
       .from("store_orders")
-      .select("id, status, delivery_status, total_paise, amount_paid_paise, created_at")
+      .select(
+        "id, user_id, status, delivery_status, total_paise, amount_paid_paise, is_partial, created_at",
+      )
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  const products = productsRes.data ?? [];
+  const variants = variantsRes.data ?? [];
+  const inventory = inventoryRes.data ?? [];
   const orders = ordersRes.data ?? [];
+
+  const stockFor = new Map(
+    inventory.map((i) => [
+      i.variant_id,
+      { stock: Number(i.stock), low: Number(i.low_stock_threshold) },
+    ]),
+  );
+
+  const variantsByProduct = new Map<string, VariantView[]>();
+  for (const v of variants) {
+    const inv = stockFor.get(v.id);
+    const list = variantsByProduct.get(v.product_id) ?? [];
+    list.push({
+      id: v.id,
+      sku: v.sku,
+      name: v.name,
+      price_paise: Number(v.price_paise),
+      stock: inv?.stock ?? 0,
+      low_stock_threshold: inv?.low ?? 5,
+    });
+    variantsByProduct.set(v.product_id, list);
+  }
+
+  const products: ProductView[] = (productsRes.data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    description: p.description,
+    mrp_paise: Number(p.mrp_paise),
+    sale_price_paise: Number(p.sale_price_paise),
+    is_active: p.is_active,
+    allow_partial: p.allow_partial,
+    variants: variantsByProduct.get(p.id) ?? [],
+  }));
+
+  // Resolve buyer names in one round trip rather than per row.
+  const buyerIds = [...new Set(orders.map((o) => o.user_id))];
+  const { data: buyers } = buyerIds.length
+    ? await supabase.from("profiles").select("id, display_name, email").in("id", buyerIds)
+    : { data: [] };
+  const buyerLabel = new Map(
+    (buyers ?? []).map((b) => [b.id, b.display_name || b.email || "Unknown player"]),
+  );
+
+  const orderViews: OrderView[] = orders.map((o) => ({
+    id: o.id,
+    buyer: buyerLabel.get(o.user_id) ?? "Unknown player",
+    status: o.status,
+    delivery_status: o.delivery_status as OrderView["delivery_status"],
+    total_paise: Number(o.total_paise),
+    amount_paid_paise: Number(o.amount_paid_paise),
+    is_partial: o.is_partial,
+    created_at: o.created_at,
+  }));
 
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="font-display text-3xl tracking-tight">Store</h1>
       <p className="mt-1 text-sm text-text-muted">
-        Catalog and orders. Manual delivery status updates.
+        Catalog, inventory and fulfilment. Every change is audited.
       </p>
 
-      {/* products */}
-      <section className="mt-8">
-        <h2 className="font-mono text-xs tracking-widest text-text-dim uppercase">
-          Products ({products.length})
-        </h2>
-        {products.length === 0 ? (
-          <div className="mt-3 flex flex-col items-center gap-2 rounded-xl border border-dashed border-line py-12 text-center">
-            <ShoppingBag className="size-7 text-text-dim" />
-            <p className="text-sm text-text-muted">No products yet. Seed the catalog to begin.</p>
-          </div>
-        ) : (
-          <div className="mt-3 overflow-hidden rounded-lg border border-line">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line bg-surface-2/60 text-left font-mono text-[10px] tracking-widest text-text-dim uppercase">
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">Price</th>
-                  <th className="px-4 py-3">Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((p) => (
-                  <tr key={p.id} className="border-b border-line/50 last:border-0">
-                    <td className="px-4 py-2.5 font-medium">{p.name}</td>
-                    <td className="px-4 py-2.5 font-mono">
-                      {formatPaise(paise(Number(p.sale_price_paise || p.mrp_paise)) as Paise, { compactWhole: true })}
-                    </td>
-                    <td className="px-4 py-2.5">{p.is_active ? "✓" : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <div className="mt-8">
+        <ProductManager products={products} />
+      </div>
 
-      {/* orders */}
-      <section className="mt-10">
+      <section className="mt-12">
         <h2 className="font-mono text-xs tracking-widest text-text-dim uppercase">
-          Recent orders ({orders.length})
+          Orders ({orderViews.length})
         </h2>
-        {orders.length === 0 ? (
-          <p className="mt-3 text-sm text-text-muted">No orders yet.</p>
-        ) : (
-          <div className="mt-3 overflow-hidden rounded-lg border border-line">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line bg-surface-2/60 text-left font-mono text-[10px] tracking-widest text-text-dim uppercase">
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Delivery</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => (
-                  <tr key={o.id} className="border-b border-line/50 last:border-0">
-                    <td className="px-4 py-2.5 font-mono text-xs text-text-dim">
-                      {new Date(o.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
-                    </td>
-                    <td className="px-4 py-2.5 capitalize">{o.status.replace("_", " ")}</td>
-                    <td className="px-4 py-2.5 capitalize">{o.delivery_status}</td>
-                    <td className="px-4 py-2.5 text-right font-mono">
-                      {formatPaise(paise(Number(o.total_paise)) as Paise, { compactWhole: true })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <p className="mt-1 text-sm text-text-muted">
+          Amounts paid are derived from captured payments — an order can&apos;t be
+          marked delivered while a balance is outstanding.
+        </p>
+        <OrderManager orders={orderViews} />
       </section>
     </div>
   );
