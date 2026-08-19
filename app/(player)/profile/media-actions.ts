@@ -33,7 +33,9 @@ export async function saveAvatarBanner(input: unknown): Promise<ActionResult> {
     return fail("Invalid file path.");
   }
 
-  const update: Record<string, string> = {};
+  // Typed explicitly: a Record<string, string> would let a typo through as a
+  // column name the database silently ignores.
+  const update: { avatar_path?: string; banner_path?: string } = {};
   if (parsed.data.avatar_path) update.avatar_path = parsed.data.avatar_path;
   if (parsed.data.banner_path) update.banner_path = parsed.data.banner_path;
 
