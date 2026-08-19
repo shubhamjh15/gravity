@@ -36,6 +36,38 @@ import {
 export type FillPolicy = "scale_down" | "guaranteed";
 export type KillSurplusPolicy = "to_organizer" | "to_admin" | "to_prize" | "destroy";
 
+const FILL_POLICIES: readonly FillPolicy[] = ["scale_down", "guaranteed"];
+const KILL_SURPLUS_POLICIES: readonly KillSurplusPolicy[] = [
+  "to_organizer",
+  "to_admin",
+  "to_prize",
+  "destroy",
+];
+
+/**
+ * Narrow the policy columns, which are `text` + CHECK in Postgres (we don't use
+ * PG enums) and therefore arrive as plain strings.
+ *
+ * The DB CHECK already guarantees a valid value, so an unknown one means the
+ * schema and this engine have drifted. Falling back to the column default is
+ * the conservative choice: `scale_down` pays out proportionally to what was
+ * actually collected, and `to_organizer` routes leftover kill budget the way
+ * the seed does — neither can overpay from a pool that was never collected.
+ */
+export function toFillPolicy(value: string | null | undefined): FillPolicy {
+  return FILL_POLICIES.includes(value as FillPolicy)
+    ? (value as FillPolicy)
+    : "scale_down";
+}
+
+export function toKillSurplusPolicy(
+  value: string | null | undefined,
+): KillSurplusPolicy {
+  return KILL_SURPLUS_POLICIES.includes(value as KillSurplusPolicy)
+    ? (value as KillSurplusPolicy)
+    : "to_organizer";
+}
+
 export type PrizeStructure = {
   entryFee: Paise;
   /** rank -> prize, e.g. { 1: ₹700, 2: ₹300, 3: ₹100 } in paise. */
