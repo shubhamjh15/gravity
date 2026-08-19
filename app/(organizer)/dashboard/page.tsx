@@ -29,9 +29,11 @@ export default async function DashboardPage() {
 
   const events = eventsRes.data ?? [];
 
-  // Organizer profit from the ledger.
+  // Organizer profit from the ledger. These rows carry direction 'internal' —
+  // they re-slice entry fees already counted as gross, so filtering on 'in'
+  // (as this did) matched nothing and the figure always read ₹0.
   const profit = (earningsRes.data ?? [])
-    .filter((r) => r.source_type === "organizer_profit" && r.direction === "in")
+    .filter((r) => r.source_type === "organizer_profit")
     .reduce((s, r) => s + Number(r.amount_paise ?? 0), 0);
 
   const liveCount = events.filter((e) =>
@@ -47,11 +49,18 @@ export default async function DashboardPage() {
           lead="Create tournaments, manage registrations, publish results and pay winners."
           as="h1"
         />
-        <Button asChild variant="gradient" size="lg">
-          <Link href={"/dashboard/create" as never}>
-            <Plus className="size-4" /> New tournament
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="lg">
+            <Link href={"/dashboard/finance" as never}>
+              <Wallet className="size-4" /> Finances
+            </Link>
+          </Button>
+          <Button asChild variant="gradient" size="lg">
+            <Link href={"/dashboard/create" as never}>
+              <Plus className="size-4" /> New tournament
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* stats */}
