@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAuthContext } from "@/lib/auth";
 import { ok, fail, type ActionResult } from "@/lib/action-result";
+import { asJson } from "@/lib/json";
 
 /** Save the About page Tiptap JSON (super-admin only). Upserts the 'main' page. */
 export async function saveAbout(input: {
@@ -16,7 +17,7 @@ export async function saveAbout(input: {
   const { error } = await supabase.from("about_pages").upsert(
     {
       slug: "main",
-      content_json: input.content_json as Record<string, unknown>,
+      content_json: asJson(input.content_json),
       updated_by: user.id,
     },
     { onConflict: "slug" },
