@@ -10,6 +10,8 @@ import { rupeesToPaise, paise, type Paise } from "@/lib/money";
 import {
   validateStructure,
   type PrizeStructure,
+  toFillPolicy,
+  toKillSurplusPolicy,
 } from "@/lib/prize";
 
 /**
@@ -216,6 +218,39 @@ async function notifyRoomReleased(
           return sendEmail({ to: p.email as string, subject: tpl.subject, html: tpl.html });
         }),
     );
+
+    // WhatsApp push, only when a provider is configured. Without one this is a
+    // no-op and players use the wa.me share button on the event page instead.
+    // Phones live in profiles_private, so this read is deliberately separate
+    // from the profiles read above and its result never leaves the server.
+    const { isWhatsAppProviderConfigured, sendWhatsApp, roomCredentialsMessage } =
+      await import("@/lib/whatsapp");
+
+    if (isWhatsAppProviderConfigured()) {
+      // profiles_private is owner/superadmin-only by RLS (#6), so an organizer
+      // cannot select phones directly — correctly. This audited SECURITY
+      // DEFINER RPC returns them for paid participants of an event the caller
+      // owns, and the numbers are used to send and then discarded; they are
+      // never returned to the organizer's browser.
+      // The generated Supabase types are still a placeholder, so the RPC's
+      // row shape is annotated here rather than inferred.
+      const { data: contacts } = (await supabase.rpc("get_event_contact_phones", {
+        p_event_id: eventId,
+      })) as { data: { user_id: string; phone: string | null }[] | null };
+
+      const message = roomCredentialsMessage({
+        eventTitle: title,
+        roomId,
+        roomPassword,
+        eventUrl: `${appUrl}/events/${slug}`,
+      });
+
+      await Promise.allSettled(
+        (contacts ?? [])
+          .filter((c) => c.phone)
+          .map((c) => sendWhatsApp({ phone: c.phone as string, message })),
+      );
+    }
   } catch {
     // best-effort; never throw from a notification fan-out
   }
@@ -254,8 +289,8 @@ export async function publishEvent(eventId: string): Promise<ActionResult> {
         killBudgetCap: paise(Number(ps.kill_budget_cap_paise)),
         adminCut: paise(Number(ps.admin_cut_paise)),
         organizerProfit: paise(Number(ps.organizer_profit_paise)),
-        fillPolicy: ps.fill_policy,
-        killSurplusPolicy: ps.kill_surplus_policy,
+        fillPolicy: toFillPolicy(ps.fill_policy),
+        killSurplusPolicy: toKillSurplusPolicy(ps.kill_surplus_policy),
         maxSlots: Number(ev.max_slots),
       };
       const v = validateStructure(structure);
