@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { ok, fail, type ActionResult } from "@/lib/action-result";
+import { asJson } from "@/lib/json";
 import { createRazorpayOrder } from "@/lib/razorpay";
 import { paise } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
@@ -42,14 +43,16 @@ export async function registerForEvent(input: {
     .single();
 
   if (!ev) return fail("Tournament not found.");
-  if (!["upcoming", "ongoing"].includes(ev.status)) {
+  // public_events is a view, so every column types as nullable even though the
+  // underlying event columns are NOT NULL.
+  if (!["upcoming", "ongoing"].includes(ev.status ?? "")) {
     return fail("Registration is closed for this tournament.");
   }
 
   // 1 — atomic slot reservation.
   const { data: regId, error: rpcErr } = await supabase.rpc("reserve_slot", {
     p_event_id: input.event_id,
-    p_form_data: input.form_data ?? {},
+    p_form_data: asJson(input.form_data ?? {}),
   });
 
   if (rpcErr) {
