@@ -10,7 +10,7 @@ import {
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
-import { getEventBySlug } from "@/lib/data/events";
+import { getEventBySlug, rankPrizesFrom } from "@/lib/data/events";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
@@ -64,13 +64,15 @@ export default async function EventDetailPage({
   const free = Number(event.entry_fee_paise) === 0;
   const full = taken >= Number(event.max_slots);
   const closed =
-    !["upcoming", "ongoing"].includes(event.status) ||
+    !["upcoming", "ongoing"].includes(event.status ?? "") ||
     (event.registration_closes_at &&
       new Date(event.registration_closes_at) < new Date());
 
-  const rankPrizes: Record<string, number> = structure?.rank_prizes_paise ?? {};
+  // rank_prizes_paise is jsonb, so it types as the Json union rather than a
+  // keyed object — narrow it once, defensively.
+  const rankPrizes = rankPrizesFrom(structure?.rank_prizes_paise);
   const prizePool =
-    Object.values(rankPrizes).reduce((s, v) => s + Number(v ?? 0), 0) +
+    Object.values(rankPrizes).reduce<number>((sum, v) => sum + v, 0) +
     Number(structure?.kill_budget_cap_paise ?? 0);
 
   const isParticipant =
