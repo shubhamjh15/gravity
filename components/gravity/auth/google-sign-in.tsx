@@ -13,8 +13,11 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { Button } from "@/components/ui/button";
 
 function GoogleGlyph() {
+  // viewBox MUST be 48x48: these are Google's official brand paths and every
+  // coordinate is in a 48-unit space. Declaring 24 drew the mark at double size
+  // and clipped it to its top-left corner — which reads as an orange blob.
   return (
-    <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
+    <svg viewBox="0 0 48 48" className="size-5" aria-hidden>
       <path
         fill="#FFC107"
         d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35 24 35c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.5 0 20-7.6 20-21 0-1.2-.1-2.3-.4-3.5z"
