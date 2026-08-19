@@ -11,7 +11,15 @@
     "typegen": "next typegen",
     "test": "vitest run",
     "test:watch": "vitest",
-    "format": "prettier --write \"**/*.{ts,tsx,css,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,css,md}\"",
+    "bundle:sql": "node scripts/bundle-migrations.mjs",
+    "db:push": "supabase db push",
+    "db:types": "node scripts/gen-types.mjs",
+    "db:test": "node scripts/pgtap.mjs",
+    "db:seed": "node scripts/db.mjs seed",
+    "db:status": "node scripts/db.mjs status",
+    "db:promote": "node scripts/promote.mjs",
+    "db:users": "node scripts/promote.mjs --list"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -42,11 +50,13 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "pg": "^8.23.0",
     "prettier": "^3.8.5",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
