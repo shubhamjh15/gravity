@@ -46,3 +46,23 @@ migration → Zod validators → server action/route → UI → impeccable polis
 
 ## Money helper
 `lib/money.ts` is the only place paise↔rupees + bps math happens. Never inline `/100` or `*100`.
+
+## Current status
+
+**Phases 0–5 complete; Phase 6 mostly complete.** Verified locally: `npm run build`
+clean (32 routes), `npm run typecheck` 0 errors, `npm test` **170 passing**.
+
+Still open:
+- **6.3 RazorpayX** automated payouts (manual worklist works today).
+- **6.4 materialized views** — ledger indexes exist; heavy aggregations are still
+  computed per request.
+- **6.6 final hardening** — impeccable pass, WebP transcode, Supabase Pro.
+- **3.8 / 6.1 partials** — community owners can't reach the announcement composer
+  (admin-only UI), no per-community referral-code creation UI, no fallback-fee
+  config screen.
+
+**The blocker that gates everything:** the Supabase project exists but no migration
+has been applied yet, so `lib/supabase/types.ts` is still a hand-written placeholder
+and no column name is compiler-checked. Run `supabase db push`, then
+`supabase gen types typescript` to replace it. `supabase/tests/database/` (pgTAP)
+also needs a live database — those suites have never been executed.
