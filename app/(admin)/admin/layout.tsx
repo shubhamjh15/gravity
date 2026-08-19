@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Users, Handshake, Receipt, FileText, ShoppingBag } from "lucide-react";
+import { LayoutDashboard, Users, Handshake, Receipt, FileText, ShoppingBag, Megaphone, Settings } from "lucide-react";
 import { getAuthContext } from "@/lib/auth";
 import { Logo } from "@/components/gravity/logo";
 
@@ -14,9 +14,11 @@ const NAV = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users & Roles", icon: Users },
   { href: "/admin/ledger", label: "Ledger", icon: Receipt },
+  { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { href: "/admin/sponsors", label: "Sponsorships", icon: Handshake },
   { href: "/admin/store", label: "Store", icon: ShoppingBag },
   { href: "/admin/about", label: "About Editor", icon: FileText },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export default async function AdminLayout({
