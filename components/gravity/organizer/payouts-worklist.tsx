@@ -4,11 +4,19 @@
  * Payouts worklist (organizer/admin). Lists winners with their owed amount;
  * marking a payout paid records the UTR + writes the ledger 'out' entry. The DB
  * has a unique-paid guard so the same payout can't be double-recorded.
+ *
+ * The winner's UPI is not part of this list's payload — it's PII the organizer
+ * can't read directly (#6). "Show UPI" fetches it through an audited RPC at the
+ * moment of transfer, so the number is available exactly when it's needed and
+ * every look is on record.
  */
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Wallet, Check } from "lucide-react";
-import { markPayoutPaid } from "@/app/(organizer)/dashboard/result-actions";
+import { Wallet, Check, Eye, Copy } from "lucide-react";
+import {
+  markPayoutPaid,
+  revealPayoutUpi,
+} from "@/app/(organizer)/dashboard/result-actions";
 import { formatPaise, paise } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +63,29 @@ function PayoutItem({ payout }: { payout: PayoutRow }) {
   const [pending, startTransition] = useTransition();
   const [utr, setUtr] = useState("");
   const [paid, setPaid] = useState(payout.status === "paid");
+  const [upi, setUpi] = useState<string | null>(null);
+
+  function showUpi() {
+    startTransition(async () => {
+      const res = await revealPayoutUpi({ payout_id: payout.id });
+      if (res.success) {
+        setUpi(res.data.upi_id);
+        toast.success(res.message);
+      } else {
+        toast.error(res.message);
+      }
+    });
+  }
+
+  async function copyUpi() {
+    if (!upi) return;
+    try {
+      await navigator.clipboard.writeText(upi);
+      toast.success("UPI ID copied.");
+    } catch {
+      toast.error("Couldn't copy — select it manually.");
+    }
+  }
 
   function pay() {
     if (!utr.trim()) {
@@ -74,11 +105,38 @@ function PayoutItem({ payout }: { payout: PayoutRow }) {
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-2/40 p-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center justify-between gap-4 sm:justify-start">
-        <span className="font-medium">{payout.name}</span>
-        <span className="font-mono font-semibold text-crimson-300">
-          {formatPaise(paise(payout.amount_paise))}
-        </span>
+      <div className="min-w-0">
+        <div className="flex items-center justify-between gap-4 sm:justify-start">
+          <span className="font-medium">{payout.name}</span>
+          <span className="font-mono font-semibold text-crimson-300">
+            {formatPaise(paise(payout.amount_paise))}
+          </span>
+        </div>
+
+        {!paid ? (
+          upi ? (
+            <button
+              type="button"
+              onClick={copyUpi}
+              className="mt-1 inline-flex items-center gap-1.5 font-mono text-xs text-text-muted transition-colors hover:text-foreground"
+              title="Copy UPI ID"
+            >
+              <Copy className="size-3" />
+              {upi}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={showUpi}
+              disabled={pending}
+              className="mt-1 inline-flex items-center gap-1.5 text-xs text-text-dim transition-colors hover:text-crimson-300 disabled:opacity-50"
+              title="Reveal the winner's UPI ID — this lookup is logged"
+            >
+              <Eye className="size-3" />
+              Show UPI
+            </button>
+          )
+        ) : null}
       </div>
 
       {paid ? (
