@@ -171,7 +171,7 @@ is_event_paid_participant(uid, eid) -> boolean -- registered + paid (gates room 
 `id, owner_id (organizer), name, slug UNIQUE, profile_pic_path, banner_path, about, location, address, rules, visibility (public/private), is_paid bool, requires_approval bool, membership_cost_paise bigint, invite_slug text UNIQUE, is_featured bool [admin-only], is_restricted bool [admin-only]`. **RLS:** public read public communities; owner writes own; `is_featured`/`is_restricted` writable by superadmin only.
 
 ### `community_members`
-`id, community_id, user_id, status (pending/active/banned/left), role (member/elite), joined_via (direct/invite/paid)`. UNIQUE (community_id, user_id). **RLS:** member reads own membership; community owner manages members.
+`id, community_id, user_id, status (pending/active/banned/left), role (member/elite/moderator), joined_via (direct/invite/paid)`. `moderator` is the owner's own row, written when the community is created.. UNIQUE (community_id, user_id). **RLS:** member reads own membership; community owner manages members.
 
 ### `memberships` — paid membership records
 `id, community_id, user_id, amount_paise, status, ledger_entry_id FK, period_start, period_end`. Feeds the community earning dashboard. (Open Q: recurring vs one-time.)
