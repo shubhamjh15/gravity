@@ -32,6 +32,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  ProductImages,
+  type ProductImage,
+} from "@/components/gravity/admin/product-images";
 import { cn } from "@/lib/utils";
 
 export type VariantView = {
@@ -53,6 +57,7 @@ export type ProductView = {
   is_active: boolean;
   allow_partial: boolean;
   variants: VariantView[];
+  images: ProductImage[];
 };
 
 export function ProductManager({ products }: { products: ProductView[] }) {
@@ -196,6 +201,8 @@ function ProductCard({
           </Button>
         </div>
       </div>
+
+      <ProductImages productId={product.id} images={product.images} />
 
       <div className="mt-4 border-t border-line/60 pt-3">
         <div className="flex items-center justify-between">

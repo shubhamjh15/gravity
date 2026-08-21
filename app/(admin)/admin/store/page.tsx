@@ -5,6 +5,7 @@ import {
   type ProductView,
   type VariantView,
 } from "@/components/gravity/admin/product-manager";
+import type { ProductImage } from "@/components/gravity/admin/product-images";
 import {
   OrderManager,
   type OrderView,
@@ -22,7 +23,8 @@ export const metadata: Metadata = { title: "Store Admin", robots: { index: false
 export default async function AdminStorePage() {
   const supabase = await createSupabaseServerClient();
 
-  const [productsRes, variantsRes, inventoryRes, ordersRes] = await Promise.all([
+  const [productsRes, variantsRes, inventoryRes, imagesRes, ordersRes] =
+    await Promise.all([
     supabase
       .from("store_products")
       .select("id, name, slug, description, mrp_paise, sale_price_paise, is_active, allow_partial")
@@ -36,6 +38,10 @@ export default async function AdminStorePage() {
       .from("store_inventory")
       .select("variant_id, stock, low_stock_threshold"),
     supabase
+      .from("store_product_images")
+      .select("id, product_id, image_path, sort_order")
+      .order("sort_order", { ascending: true }),
+    supabase
       .from("store_orders")
       .select(
         "id, user_id, status, delivery_status, total_paise, amount_paid_paise, is_partial, created_at",
@@ -47,6 +53,18 @@ export default async function AdminStorePage() {
   const variants = variantsRes.data ?? [];
   const inventory = inventoryRes.data ?? [];
   const orders = ordersRes.data ?? [];
+
+  // Group images by product so each card gets its own already-sorted list.
+  const imagesByProduct = new Map<string, ProductImage[]>();
+  for (const img of imagesRes.data ?? []) {
+    const list = imagesByProduct.get(img.product_id) ?? [];
+    list.push({
+      id: img.id,
+      image_path: img.image_path,
+      sort_order: Number(img.sort_order),
+    });
+    imagesByProduct.set(img.product_id, list);
+  }
 
   const stockFor = new Map(
     inventory.map((i) => [
@@ -80,6 +98,7 @@ export default async function AdminStorePage() {
     is_active: p.is_active,
     allow_partial: p.allow_partial,
     variants: variantsByProduct.get(p.id) ?? [],
+    images: imagesByProduct.get(p.id) ?? [],
   }));
 
   // Resolve buyer names in one round trip rather than per row.

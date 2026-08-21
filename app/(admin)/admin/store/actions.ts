@@ -254,3 +254,119 @@ export async function setDeliveryStatus(
   revalidatePath("/orders");
   return ok(undefined, `Marked ${delivery_status}.`);
 }
+
+// ---------------------------------------------------------------------------
+// Product images (ROADMAP 5.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Attach an uploaded image to a product.
+ *
+ * The file itself is uploaded straight from the browser to the `store-images`
+ * bucket (public, superadmin-write by storage policy); this records the row so
+ * the storefront can find it. Taking the path rather than the bytes keeps the
+ * upload off the server action, which has a request-body limit and would make a
+ * multi-megabyte photo a slow round trip.
+ */
+export async function addProductImage(input: {
+  product_id: string;
+  image_path: string;
+}): Promise<ActionResult<{ id: string }>> {
+  const admin = await requireSuperadmin();
+  if (!admin) return fail("Not authorized.");
+
+  if (!input.image_path || input.image_path.includes("..")) {
+    return fail("Invalid image path.");
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  // Append to the end of the existing order.
+  const { data: last } = await supabase
+    .from("store_product_images")
+    .select("sort_order")
+    .eq("product_id", input.product_id)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data, error } = await supabase
+    .from("store_product_images")
+    .insert({
+      product_id: input.product_id,
+      image_path: input.image_path,
+      sort_order: (last?.sort_order ?? -1) + 1,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) return fail("Could not attach the image.");
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "add_product_image",
+    p_target_table: "store_product_images",
+    p_target_id: data.id,
+    p_after: { product_id: input.product_id, image_path: input.image_path },
+  });
+
+  revalidatePath("/admin/store");
+  revalidatePath("/store");
+  return ok({ id: data.id }, "Image added.");
+}
+
+/** Remove a product image (row + the stored object). */
+export async function removeProductImage(input: {
+  image_id: string;
+}): Promise<ActionResult> {
+  const admin = await requireSuperadmin();
+  if (!admin) return fail("Not authorized.");
+
+  const supabase = await createSupabaseServerClient();
+
+  const { data: img } = await supabase
+    .from("store_product_images")
+    .select("id, image_path")
+    .eq("id", input.image_id)
+    .maybeSingle();
+  if (!img) return fail("Image not found.");
+
+  const { error } = await supabase
+    .from("store_product_images")
+    .delete()
+    .eq("id", input.image_id);
+  if (error) return fail("Could not remove the image.");
+
+  // Best-effort object cleanup: the catalog row is the source of truth, and a
+  // stranded file is far less harmful than a row pointing at nothing.
+  await supabase.storage.from("store-images").remove([img.image_path]);
+
+  await supabase.rpc("write_audit_log", {
+    p_action: "remove_product_image",
+    p_target_table: "store_product_images",
+    p_target_id: input.image_id,
+  });
+
+  revalidatePath("/admin/store");
+  revalidatePath("/store");
+  return ok(undefined, "Image removed.");
+}
+
+/** Reorder — the lowest sort_order is the product's primary image. */
+export async function setProductImageOrder(input: {
+  image_id: string;
+  sort_order: number;
+}): Promise<ActionResult> {
+  const admin = await requireSuperadmin();
+  if (!admin) return fail("Not authorized.");
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("store_product_images")
+    .update({ sort_order: Math.max(0, Math.trunc(input.sort_order)) })
+    .eq("id", input.image_id);
+  if (error) return fail("Could not reorder.");
+
+  revalidatePath("/admin/store");
+  revalidatePath("/store");
+  return ok(undefined, "Order updated.");
+}
