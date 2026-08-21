@@ -258,6 +258,21 @@
     color-scheme: dark;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+
+    /* Permanently reserve the scrollbar gutter.
+     *
+     * Radix locks body scroll with `overflow: hidden` whenever a dropdown,
+     * dialog or select opens — the avatar menu and the notification bell both
+     * do it. Without a reserved gutter the 10px scrollbar disappears at that
+     * moment, the viewport widens, and the whole page snaps sideways and back:
+     * the "jitter on click".
+     *
+     * Radix compensates by adding padding-right to <body>, but the site nav is
+     * `position: fixed`, and fixed elements are positioned against the viewport
+     * — they never see that padding. So the nav jumps even when the body
+     * doesn't. Reserving the gutter here fixes both at once, and makes Radix's
+     * measured scrollbar width 0 so it stops adding padding at all. */
+    scrollbar-gutter: stable;
   }
 
   body {
