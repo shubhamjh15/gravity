@@ -1,17 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Archivo_Black, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { SmoothScroll } from "@/components/gravity/smooth-scroll";
 import "./globals.css";
 
 /**
  * GRAVITY typography — deliberately NOT the generic Inter/Geist defaults.
- *  - Anton: heavy condensed display for the wordmark + headings (tournament-poster impact)
+ *  - Archivo Black: heavy display for the wordmark + headings. Replaced Anton,
+ *    which is ultra-condensed — combined with negative tracking it read as
+ *    cramped at every size. Archivo Black keeps the poster weight but has far
+ *    wider letterforms, so headings breathe.
  *  - Space Grotesk: characterful geometric grotesk for body
  *  - JetBrains Mono: tabular figures for money, kills, room IDs, stats
  * Each is bound to the CSS variable consumed in globals.css (@theme).
  */
-const fontDisplay = Anton({
+const fontDisplay = Archivo_Black({
   variable: "--font-gv-display",
   subsets: ["latin"],
   weight: "400",

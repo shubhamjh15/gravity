@@ -86,7 +86,7 @@
   --gv-dur-slow: 450ms;
 
   /* ---- Fonts (wired from next/font in layout.tsx) ------------------------- */
-  --font-display: var(--font-gv-display), "Arial Narrow", sans-serif;
+  --font-display: var(--font-gv-display), "Arial Black", "Helvetica Neue", sans-serif;
   --font-sans: var(--font-gv-sans), system-ui, sans-serif;
   --font-mono: var(--font-gv-mono), ui-monospace, monospace;
 
@@ -273,6 +273,14 @@
      * doesn't. Reserving the gutter here fixes both at once, and makes Radix's
      * measured scrollbar width 0 so it stops adding padding at all. */
     scrollbar-gutter: stable;
+
+    /* Scale the whole UI up 10%.
+     *
+     * Tailwind sizes everything — text, spacing, radii — in rem, so moving the
+     * root font size scales the entire interface proportionally. Doing it here
+     * rather than touching hundreds of utility classes keeps the design system
+     * intact and stays reversible: this one number is the knob. */
+    font-size: 110%;
   }
 
   body {
@@ -291,7 +299,14 @@
         rgba(255, 106, 61, 0.05),
         transparent 55%
       );
-    background-attachment: fixed;
+    /* NOT background-attachment: fixed.
+     *
+     * A fixed attachment forces the browser to repaint the full viewport on
+     * every scroll frame — and with two large radial gradients layered on top,
+     * that is expensive. Under Lenis's smooth scroll it shows up as visible
+     * stutter. A normal (scrolling) background is composited instead of
+     * repainted, and the gradients are large enough that the visual difference
+     * is negligible. */
     min-height: 100dvh;
   }
 
@@ -305,7 +320,15 @@
   h3,
   .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    /* Was -0.02em on top of an ultra-condensed face, which is what made
+     * headings feel cramped. Archivo Black is already tight-fitting; a hair of
+     * NEGATIVE tracking only at very large sizes, neutral elsewhere. */
+    letter-spacing: -0.005em;
+  }
+
+  /* Big display type can take a touch more negative tracking without crowding. */
+  h1 {
+    letter-spacing: -0.015em;
   }
 
   /* Themed scrollbar (matches the crimson family, stays subtle). */
