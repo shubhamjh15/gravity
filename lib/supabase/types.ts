@@ -8,7 +8,7 @@
  * plain Postgres connection. (The official `supabase gen types` shells out to
  * Docker; this keeps type generation dependency-free.)
  *
- * Generated from 50 tables, 1 views, 61 functions.
+ * Generated from 51 tables, 1 views, 62 functions.
  */
 
 export type Json =
@@ -928,6 +928,54 @@ export type Database = {
           link?: string | null;
           read_at?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      organizer_applications: {
+        Row: {
+          id: string;
+          user_id: string;
+          org_name: string;
+          games: string | null;
+          experience: string;
+          audience_size: string | null;
+          links: string | null;
+          status: string;
+          review_note: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          org_name: string;
+          games?: string | null;
+          experience: string;
+          audience_size?: string | null;
+          links?: string | null;
+          status?: string;
+          review_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          org_name?: string;
+          games?: string | null;
+          experience?: string;
+          audience_size?: string | null;
+          links?: string | null;
+          status?: string;
+          review_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -2225,6 +2273,14 @@ export type Database = {
         Returns: { user_id: string; upi_id: string; phone: string; gov_id_type: string; kyc_status: string }[];
       };
       review_elite_application: {
+        Args: {
+          p_application_id: string;
+          p_approve: boolean;
+          p_review_note?: string;
+        };
+        Returns: string;
+      };
+      review_organizer_application: {
         Args: {
           p_application_id: string;
           p_approve: boolean;

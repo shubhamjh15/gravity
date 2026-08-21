@@ -22,7 +22,7 @@ const FOOTER_SECTIONS = [
     title: "Account",
     links: [
       { href: "/login", label: "Log in" },
-      { href: "/login", label: "Become an organizer" },
+      { href: "/become-organizer", label: "Become an organizer" },
     ],
   },
 ] as const;
