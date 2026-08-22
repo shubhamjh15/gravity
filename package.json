@@ -19,7 +19,9 @@
     "db:seed": "node scripts/db.mjs seed",
     "db:status": "node scripts/db.mjs status",
     "db:promote": "node scripts/promote.mjs",
-    "db:users": "node scripts/promote.mjs --list"
+    "db:users": "node scripts/promote.mjs --list",
+    "db:demo": "node scripts/demo-data.mjs",
+    "db:demo:clear": "node scripts/demo-data.mjs --clear"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
