@@ -11,6 +11,7 @@ import {
   FeaturedManager,
   type PlacementView,
 } from "@/components/gravity/admin/featured-manager";
+import { CommunityFeatureToggles } from "@/components/gravity/admin/community-feature-toggles";
 
 export const metadata: Metadata = {
   title: "Announcements",
@@ -32,7 +33,7 @@ export default async function AdminAnnouncementsPage() {
       listAllFeaturedPlacements(),
       supabase
         .from("communities")
-        .select("id, name")
+        .select("id, name, is_featured")
         .is("deleted_at", null)
         .order("name"),
       supabase
@@ -142,6 +143,16 @@ export default async function AdminAnnouncementsPage() {
       ) : null}
 
       <section className="mt-12">
+        <CommunityFeatureToggles
+          communities={communities.map((c) => ({
+            id: c.id,
+            name: c.name,
+            is_featured: Boolean(c.is_featured),
+          }))}
+        />
+      </section>
+
+      <section className="mt-8">
         <FeaturedManager
           placements={placementViews}
           events={events}
