@@ -10,7 +10,7 @@
  * Colour comes from the single accent family plus the semantic warning/danger
  * tokens — no new hue, no hardcoded hex (anti-vibecoded rule).
  */
-import { useEffect, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Info, TriangleAlert, OctagonAlert, X } from "lucide-react";
 import type { Announcement } from "@/lib/data/announcements";
@@ -36,40 +36,70 @@ const LEVEL_STYLES = {
   },
 } as const;
 
-function readDismissed(): string[] {
+function readDismissed(): string {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
+    return sessionStorage.getItem(STORAGE_KEY) ?? "[]";
+  } catch {
+    // Private mode / storage disabled — nothing is dismissed.
+    return "[]";
+  }
+}
+
+function parseDismissed(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
   } catch {
     return [];
   }
 }
+
+/**
+ * sessionStorage is an external store, so it is read through
+ * useSyncExternalStore rather than an effect that calls setState.
+ *
+ * The effect version caused a cascading render on every mount, and React's
+ * purity lint flags it for good reason. This also gives a correct SERVER
+ * snapshot ("nothing dismissed"), which is what avoids a hydration mismatch:
+ * the server cannot know what this browser has dismissed.
+ */
+const dismissedStore = {
+  subscribe(onChange: () => void) {
+    window.addEventListener("storage", onChange);
+    return () => window.removeEventListener("storage", onChange);
+  },
+  getSnapshot: readDismissed,
+  getServerSnapshot: () => "[]",
+};
 
 export function AnnouncementBanner({
   announcements,
 }: {
   announcements: Announcement[];
 }) {
-  // Start empty and fill after mount: sessionStorage isn't available during
-  // SSR, and rendering then hiding would cause a hydration mismatch.
-  const [visible, setVisible] = useState<Announcement[]>([]);
+  const raw = useSyncExternalStore(
+    dismissedStore.subscribe,
+    dismissedStore.getSnapshot,
+    dismissedStore.getServerSnapshot,
+  );
 
-  useEffect(() => {
-    const dismissed = readDismissed();
-    setVisible(announcements.filter((a) => !dismissed.includes(a.id)));
-  }, [announcements]);
+  // Locally dismissed this render pass. useSyncExternalStore won't re-fire for
+  // our own write (no `storage` event fires in the tab that wrote it), so the
+  // dismissal is also tracked in state.
+  const [justDismissed, setJustDismissed] = useState<string[]>([]);
 
-  function dismiss(id: string) {
-    setVisible((list) => list.filter((a) => a.id !== id));
+  const dismiss = useCallback((id: string) => {
+    setJustDismissed((list) => [...list, id]);
     try {
-      sessionStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify([...readDismissed(), id]),
-      );
+      const current = parseDismissed(readDismissed());
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...current, id]));
     } catch {
-      // Private-mode or storage-full: dismissing for this render is enough.
+      // Private-mode or storage-full: dismissing for this session is enough.
     }
-  }
+  }, []);
+
+  const dismissed = new Set([...parseDismissed(raw), ...justDismissed]);
+  const visible = announcements.filter((a) => !dismissed.has(a.id));
 
   if (visible.length === 0) return null;
 

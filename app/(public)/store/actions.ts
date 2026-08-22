@@ -256,7 +256,7 @@ export async function checkout(input: {
 
   // Partial payment is a per-product privilege — every line must allow it, or
   // a buyer could part-pay for something the admin marked full-payment-only.
-  let partial = Boolean(input.partial);
+  const partial = Boolean(input.partial);
   if (partial) {
     const productIds = [
       ...new Set(

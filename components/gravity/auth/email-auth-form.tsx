@@ -11,7 +11,7 @@
  * immediate feedback, never as the enforcement.
  */
 import { useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Mail, Lock, User, Eye, EyeOff, CheckCircle2 } from "lucide-react";
@@ -29,7 +29,6 @@ import { cn } from "@/lib/utils";
 type Mode = "signin" | "signup";
 
 export function EmailAuthForm({ initialMode = "signin" }: { initialMode?: Mode }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? undefined;
 

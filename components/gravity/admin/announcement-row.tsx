@@ -43,7 +43,10 @@ export function AnnouncementRow({
   const [retired, setRetired] = useState(initialRetired);
   const [pending, startTransition] = useTransition();
 
-  const now = Date.now();
+  // Sampled once on mount, not on every render: calling Date.now() during
+  // render is impure, so the same component could disagree with itself between
+  // two renders in the same tick.
+  const [now] = useState(() => Date.now());
   const started = new Date(activeFrom).getTime() <= now;
   const ended = activeTo ? new Date(activeTo).getTime() <= now : false;
   const state = retired
