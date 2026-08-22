@@ -140,7 +140,7 @@ export default async function LeaderboardPage({
 function RankBadge({ rank }: { rank: number }) {
   if (rank <= 3) {
     const color =
-      rank === 1 ? "text-amber-300" : rank === 2 ? "text-zinc-300" : "text-orange-400";
+      rank === 1 ? "text-ember-400" : rank === 2 ? "text-text-muted" : "text-crimson-400";
     return (
       <span className={`grid size-9 place-items-center font-display text-lg ${color}`}>
         <Crown className="size-5" />

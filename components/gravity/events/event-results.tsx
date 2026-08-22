@@ -28,9 +28,9 @@ export async function EventResults({ eventId }: { eventId: string }) {
     profiles?.find((p) => p.id === id)?.display_name ?? "Player";
 
   const rankColor = (rank: number | null) => {
-    if (rank === 1) return "text-amber-300";
-    if (rank === 2) return "text-zinc-300";
-    if (rank === 3) return "text-orange-400";
+    if (rank === 1) return "text-ember-400";
+    if (rank === 2) return "text-text-muted";
+    if (rank === 3) return "text-crimson-400";
     return "text-text-muted";
   };
 
