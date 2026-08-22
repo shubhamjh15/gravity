@@ -26,6 +26,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { BannerFallback } from "@/components/gravity/banner-fallback";
 
 export async function generateMetadata({
   params,
@@ -127,7 +128,7 @@ export default async function CommunityDetailPage({
         {banner ? (
           <Image src={banner} alt="" fill priority className="object-cover" sizes="100vw" unoptimized />
         ) : (
-          <div className="absolute inset-0 gv-grid-bg opacity-50" />
+          <BannerFallback seed={community.name} showInitial />
         )}
         <Spotlight />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />

@@ -19,6 +19,7 @@ import { RegisterButton } from "@/components/gravity/events/register-button";
 import { RoomCredentials } from "@/components/gravity/events/room-credentials";
 import { EventResults } from "@/components/gravity/events/event-results";
 import { Spotlight } from "@/components/gravity/spotlight";
+import { BannerFallback } from "@/components/gravity/banner-fallback";
 
 export async function generateMetadata({
   params,
@@ -93,7 +94,7 @@ export default async function EventDetailPage({
             unoptimized
           />
         ) : (
-          <div className="absolute inset-0 gv-grid-bg opacity-50" />
+          <BannerFallback seed={event.title} showInitial />
         )}
         <Spotlight />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />

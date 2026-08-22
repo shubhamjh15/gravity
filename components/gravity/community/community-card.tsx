@@ -4,6 +4,7 @@ import { Users, MapPin, Crown } from "lucide-react";
 import { GlowCard } from "@/components/gravity/glow-card";
 import { formatPaise, paise } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
+import { BannerFallback } from "@/components/gravity/banner-fallback";
 
 export type CommunityCardData = {
   id: string;
@@ -35,7 +36,7 @@ export function CommunityCard({ community }: { community: CommunityCardData }) {
           {banner ? (
             <Image src={banner} alt="" fill className="object-cover" sizes="400px" unoptimized />
           ) : (
-            <div className="absolute inset-0 gv-grid-bg opacity-50" />
+            <BannerFallback seed={community.name} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-surface to-transparent" />
           {community.is_featured ? (
