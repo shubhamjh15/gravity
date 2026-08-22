@@ -5,19 +5,27 @@
  *
  * Layered: aurora blobs + cursor spotlight + faint grid, a giant Anton wordmark
  * that scrubs up on scroll (GSAP), an eyebrow, a lead line that word-reveals,
- * dual CTAs, and a live-stats strip. Everything respects reduced motion.
+ * dual CTAs, and a stats strip fed by REAL platform figures.
+ *
+ * Those numbers used to be hardcoded (250000 / 1200 / 12400) on a platform that
+ * had paid out nothing. Invented payout figures are dishonest on a product that
+ * handles other people's prize money, so the strip now takes real data — and
+ * when there genuinely isn't any yet, it shows what the platform offers instead
+ * of three zeros or three lies.
  */
 import { useRef } from "react";
 import Link from "next/link";
 import { useGSAP } from "@gsap/react";
-import { ArrowRight, Trophy, Users, Wallet } from "lucide-react";
+import { ArrowRight, Trophy, Users, Wallet, ShieldCheck, Zap } from "lucide-react";
 import { gsap, prefersReducedMotion } from "@/components/gravity/scroll/gsap";
 import { AuroraBackground } from "@/components/gravity/aurora-background";
 import { Spotlight } from "@/components/gravity/spotlight";
 import { StatCounter } from "@/components/gravity/stat-counter";
 import { Button } from "@/components/ui/button";
+import { formatPaiseCompact, paise } from "@/lib/money";
+import type { PlatformStats } from "@/lib/data/platform-stats";
 
-export function Hero() {
+export function Hero({ stats }: { stats: PlatformStats }) {
   const root = useRef<HTMLElement>(null);
 
   useGSAP(
@@ -121,21 +129,49 @@ export function Hero() {
             data-hero-stats
             className="mt-16 grid w-full max-w-2xl grid-cols-3 gap-px overflow-hidden rounded-xl border border-line bg-line"
           >
-            <HeroStat
-              icon={<Wallet className="size-4" />}
-              label="Paid out"
-              value={<StatCounter value={250000} prefix="₹" />}
-            />
-            <HeroStat
-              icon={<Trophy className="size-4" />}
-              label="Tournaments"
-              value={<StatCounter value={1200} suffix="+" />}
-            />
-            <HeroStat
-              icon={<Users className="size-4" />}
-              label="Players"
-              value={<StatCounter value={12400} suffix="+" />}
-            />
+            {stats.isEmpty ? (
+              <>
+                {/* Nothing real to report yet — say what the platform does
+                    rather than dress up zeros or invent numbers. */}
+                <HeroStat
+                  icon={<Zap className="size-4" />}
+                  label="Entry to payout"
+                  value={<span className="text-xl sm:text-2xl">One ledger</span>}
+                />
+                <HeroStat
+                  icon={<ShieldCheck className="size-4" />}
+                  label="Room creds"
+                  value={<span className="text-xl sm:text-2xl">Paid only</span>}
+                />
+                <HeroStat
+                  icon={<Trophy className="size-4" />}
+                  label="Built for"
+                  value={<span className="text-xl sm:text-2xl">FF · BGMI</span>}
+                />
+              </>
+            ) : (
+              <>
+                <HeroStat
+                  icon={<Wallet className="size-4" />}
+                  label="Paid out"
+                  value={
+                    <span title={`${stats.paidOutPaise} paise`}>
+                      {formatPaiseCompact(paise(stats.paidOutPaise))}
+                    </span>
+                  }
+                />
+                <HeroStat
+                  icon={<Trophy className="size-4" />}
+                  label="Tournaments"
+                  value={<StatCounter value={stats.tournaments} />}
+                />
+                <HeroStat
+                  icon={<Users className="size-4" />}
+                  label="Players"
+                  value={<StatCounter value={stats.players} />}
+                />
+              </>
+            )}
           </dl>
         </div>
       </div>
