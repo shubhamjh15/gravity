@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
 import { SectionHeading } from "@/components/gravity/section-heading";
+import { PublishEventButton } from "@/components/gravity/organizer/publish-event-button";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Organizer Dashboard" };
@@ -115,7 +116,13 @@ export default async function DashboardPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="rounded-full border border-line px-2 py-0.5 text-[11px] capitalize">
+                    <span
+                      className={
+                        e.status === "draft"
+                          ? "rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] text-warning capitalize"
+                          : "rounded-full border border-line px-2 py-0.5 text-[11px] capitalize"
+                      }
+                    >
                       {e.status}
                     </span>
                   </td>
@@ -125,9 +132,16 @@ export default async function DashboardPage() {
                       : formatPaise(paise(Number(e.entry_fee_paise)), { compactWhole: true })}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/dashboard/manage/${e.id}` as never}>Manage</Link>
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      {/* A draft is invisible to players until it is published,
+                          and publish is where the prize split is re-validated. */}
+                      {e.status === "draft" ? (
+                        <PublishEventButton eventId={e.id} size="sm" />
+                      ) : null}
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/dashboard/manage/${e.id}` as never}>Manage</Link>
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
