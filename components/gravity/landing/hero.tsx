@@ -121,7 +121,7 @@ export function Hero({ stats }: { stats: PlatformStats }) {
               </Link>
             </Button>
             <Button asChild variant="glow" size="xl" data-hero-cta>
-              <Link href={"/login" as never}>Host a Tournament</Link>
+              <Link href={"/become-organizer" as never}>Host a Tournament</Link>
             </Button>
           </div>
 

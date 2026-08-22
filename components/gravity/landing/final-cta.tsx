@@ -34,7 +34,7 @@ export function FinalCta() {
                 </Link>
               </Button>
               <Button asChild variant="outline" size="xl">
-                <Link href={"/login" as never}>Become an organizer</Link>
+                <Link href={"/become-organizer" as never}>Become an organizer</Link>
               </Button>
             </div>
           </div>
