@@ -124,7 +124,7 @@ export default async function CommunityDetailPage({
   return (
     <article className="pb-24">
       {/* hero */}
-      <div className="relative h-52 w-full overflow-hidden sm:h-72">
+      <div className="relative h-40 w-full overflow-hidden sm:h-56">
         {banner ? (
           <Image src={banner} alt="" fill priority className="object-cover" sizes="100vw" unoptimized />
         ) : (
@@ -135,7 +135,7 @@ export default async function CommunityDetailPage({
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="-mt-16 flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end">
           <div className="size-28 shrink-0 overflow-hidden rounded-2xl border-2 border-background bg-surface-2 shadow-glow sm:size-32">
             {pic ? (
               <Image src={pic} alt="" width={128} height={128} className="size-full object-cover" unoptimized />

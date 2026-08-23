@@ -82,7 +82,7 @@ export default async function EventDetailPage({
   return (
     <article className="pb-24">
       {/* Hero banner */}
-      <div className="relative h-64 w-full overflow-hidden sm:h-80 lg:h-96">
+      <div className="relative h-48 w-full overflow-hidden sm:h-64 lg:h-72">
         {banner ? (
           <Image
             src={banner}

@@ -320,6 +320,10 @@
   h3,
   .font-display {
     font-family: var(--font-display);
+    /* Archivo Black has tall caps and short internal leading. Without this,
+     * large headings visually clip their ascenders against whatever sits
+     * above them. */
+    line-height: 1.12;
     /* Was -0.02em on top of an ultra-condensed face, which is what made
      * headings feel cramped. Archivo Black is already tight-fitting; a hair of
      * NEGATIVE tracking only at very large sizes, neutral elsewhere. */
