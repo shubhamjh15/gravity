@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Users, MapPin, ScrollText, Calendar } from "lucide-react";
 import { getCommunityBySlug } from "@/lib/data/communities";
+import { getLiveAnnouncements } from "@/lib/data/announcements";
+import { AnnouncementBanner } from "@/components/gravity/announcement-banner";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
@@ -121,6 +123,15 @@ export default async function CommunityDetailPage({
     : { data: [] as CommunityCode[] };
   const communityCodes = (codeRows ?? []) as CommunityCode[];
 
+  // Announcements live HERE rather than in the public layout: a platform notice
+  // above a marketing hero reads as an error bar, but inside a community it is
+  // exactly what a member came for. getLiveAnnouncements returns global notices
+  // alongside this community's own, already window-filtered in SQL.
+  const announcements = await getLiveAnnouncements({
+    scope: "community",
+    scopeId: community.id,
+  });
+
   return (
     <article className="pb-24">
       {/* hero */}
@@ -196,6 +207,12 @@ export default async function CommunityDetailPage({
 
         {/* tabs */}
         <div className="mt-8">
+          {announcements.length > 0 ? (
+            <div className="mb-6">
+              <AnnouncementBanner announcements={announcements} />
+            </div>
+          ) : null}
+
           <Tabs defaultValue="feed">
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="feed">Feed</TabsTrigger>

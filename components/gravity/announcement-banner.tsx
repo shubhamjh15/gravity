@@ -11,7 +11,6 @@
  * tokens — no new hue, no hardcoded hex (anti-vibecoded rule).
  */
 import { useCallback, useState, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Info, TriangleAlert, OctagonAlert, X } from "lucide-react";
 import type { Announcement } from "@/lib/data/announcements";
@@ -78,11 +77,6 @@ export function AnnouncementBanner({
 }: {
   announcements: Announcement[];
 }) {
-  // Not on the marketing homepage. An operational notice above the hero reads
-  // as an error bar to a first-time visitor and pushes the pitch below the
-  // fold — announcements are for people using the product, not being sold it.
-  const pathname = usePathname();
-
   const raw = useSyncExternalStore(
     dismissedStore.subscribe,
     dismissedStore.getSnapshot,
@@ -107,10 +101,10 @@ export function AnnouncementBanner({
   const dismissed = new Set([...parseDismissed(raw), ...justDismissed]);
   const visible = announcements.filter((a) => !dismissed.has(a.id));
 
-  if (pathname === "/" || visible.length === 0) return null;
+  if (visible.length === 0) return null;
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pt-20 sm:px-6 lg:px-8">
+    <div className="w-full">
       <AnimatePresence initial={false}>
         {visible.map((a) => {
           const style = LEVEL_STYLES[a.level] ?? LEVEL_STYLES.info;
