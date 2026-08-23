@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, Users, Handshake, Receipt, FileText, ShoppingBag, Megaphone, Settings, BadgeCheck } from "lucide-react";
 import { getAuthContext } from "@/lib/auth";
+import { hasAdminSession, isGateConfigured } from "@/lib/admin-gate";
 import { Logo } from "@/components/gravity/logo";
 
 /**
@@ -28,7 +29,17 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, isSuperadmin } = await getAuthContext();
+
+  // The role is the authorization; RLS enforces it on every query underneath.
+  // Anyone without it is sent home rather than told the console exists.
   if (!user || !isSuperadmin) {
+    redirect("/");
+  }
+
+  // Second factor: even a real superadmin needs an unlocked gate session, so a
+  // borrowed or stolen login alone cannot open the console. Unconfigured gates
+  // fail CLOSED — a missing secret must not mean "no lock".
+  if (!isGateConfigured() || !(await hasAdminSession())) {
     redirect("/");
   }
 

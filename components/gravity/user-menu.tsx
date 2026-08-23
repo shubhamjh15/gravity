@@ -13,7 +13,6 @@ import {
   Wallet,
   Package,
   LayoutDashboard,
-  Shield,
   LogOut,
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
@@ -34,6 +33,7 @@ export function UserMenu({
   name: string;
   avatarUrl: string | null;
   isOrganizer: boolean;
+  /** Kept so the organizer entry still shows for admins who aren't organizers. */
   isSuperadmin: boolean;
 }) {
   const initials = name
@@ -92,13 +92,9 @@ export function UserMenu({
             </Link>
           </DropdownMenuItem>
         ) : null}
-        {isSuperadmin ? (
-          <DropdownMenuItem asChild>
-            <Link href={"/admin" as never}>
-              <Shield className="size-4" /> Admin console
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
+        {/* No admin link here on purpose. The console is reached through its
+            secret URL plus a passphrase — advertising it in a menu that renders
+            on every page would undo the point of hiding it. */}
         <DropdownMenuSeparator className="bg-line" />
         <form action={signOut}>
           <button
