@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { formatPaiseCompact, paise } from "@/lib/money";
 
 /**
  * Real platform figures for the landing page.
@@ -16,6 +17,15 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  */
 export type PlatformStats = {
   paidOutPaise: number;
+  /**
+   * Pre-formatted on the server.
+   *
+   * Intl.NumberFormat's compact notation does NOT agree between Node's ICU and
+   * a browser's — the same zero renders "₹0" on the server and "₹0.0" in the
+   * client, which is a hydration mismatch. Formatting once here and shipping
+   * the string means the client never reformats it.
+   */
+  paidOutLabel: string;
   tournaments: number;
   players: number;
   /** True when there is genuinely nothing to boast about yet. */
@@ -25,6 +35,7 @@ export type PlatformStats = {
 export async function getPlatformStats(): Promise<PlatformStats> {
   const empty: PlatformStats = {
     paidOutPaise: 0,
+    paidOutLabel: formatPaiseCompact(paise(0)),
     tournaments: 0,
     players: 0,
     isEmpty: true,
@@ -59,6 +70,7 @@ export async function getPlatformStats(): Promise<PlatformStats> {
 
     return {
       paidOutPaise,
+      paidOutLabel: formatPaiseCompact(paise(paidOutPaise)),
       tournaments,
       players,
       // A brand-new platform shows its promise instead of three zeros.

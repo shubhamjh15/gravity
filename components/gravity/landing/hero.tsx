@@ -22,7 +22,6 @@ import { AuroraBackground } from "@/components/gravity/aurora-background";
 import { Spotlight } from "@/components/gravity/spotlight";
 import { StatCounter } from "@/components/gravity/stat-counter";
 import { Button } from "@/components/ui/button";
-import { formatPaiseCompact, paise } from "@/lib/money";
 import type { PlatformStats } from "@/lib/data/platform-stats";
 
 export function Hero({ stats }: { stats: PlatformStats }) {
@@ -156,7 +155,7 @@ export function Hero({ stats }: { stats: PlatformStats }) {
                   label="Paid out"
                   value={
                     <span title={`${stats.paidOutPaise} paise`}>
-                      {formatPaiseCompact(paise(stats.paidOutPaise))}
+                      {stats.paidOutLabel}
                     </span>
                   }
                 />
