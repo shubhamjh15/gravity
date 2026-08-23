@@ -9,25 +9,16 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
-import { updateCartItem, checkout } from "@/app/(public)/store/actions";
-import { formatPaise, paise } from "@/lib/money";
+import {
+  updateCartItem,
+  checkout,
+  previewDiscount,
+} from "@/app/(public)/store/actions";
+import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
+import { formatPaise, paise, splitEvenly } from "@/lib/money";
 import { Button } from "@/components/ui/button";
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
-  }
-}
-function loadRazorpay(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (window.Razorpay) return resolve(true);
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.body.appendChild(s);
-  });
-}
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type CartItem = {
   id: string;
@@ -52,9 +43,38 @@ export function CartView({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [checkingOut, setCheckingOut] = useState(false);
+  const [code, setCode] = useState("");
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [discount, setDiscount] = useState(0);
+  const [checkingCode, setCheckingCode] = useState(false);
 
-  const total = items.reduce((s, i) => s + i.price_paise * i.qty, 0);
+  const subtotal = items.reduce((s, i) => s + i.price_paise * i.qty, 0);
+  // The server re-validates and recomputes this; the figure here is display only.
+  const total = Math.max(0, subtotal - discount);
   const allowPartial = items.length > 0 && items.every((i) => i.allow_partial);
+
+  async function applyCode() {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setCheckingCode(true);
+    const res = await previewDiscount({ code: trimmed });
+    if (res.success) {
+      setDiscount(res.data.discountPaise);
+      setAppliedCode(trimmed);
+      toast.success(res.message);
+    } else {
+      setDiscount(0);
+      setAppliedCode(null);
+      toast.error(res.message);
+    }
+    setCheckingCode(false);
+  }
+
+  function clearCode() {
+    setCode("");
+    setAppliedCode(null);
+    setDiscount(0);
+  }
 
   function setQty(itemId: string, qty: number) {
     startTransition(async () => {
@@ -65,34 +85,29 @@ export function CartView({
 
   async function doCheckout(partial: boolean) {
     setCheckingOut(true);
-    const res = await checkout({ partial });
+    const res = await checkout({ partial, code: appliedCode ?? undefined });
     if (!res.success || !res.data.order) {
       toast.error(res.success ? "Could not start checkout." : res.message);
       setCheckingOut(false);
       return;
     }
-    const order = res.data.order;
-    if (!(await loadRazorpay()) || !window.Razorpay) {
-      toast.error("Could not open payment.");
-      setCheckingOut(false);
-      return;
-    }
-    const rzp = new window.Razorpay({
-      key: order.keyId,
-      amount: order.amount,
-      currency: order.currency,
+    const opened = await openRazorpayCheckout({
+      order: res.data.order,
       name: "GRAVITY Store",
-      description: partial ? "Order (partial payment)" : "Order",
-      order_id: order.id,
+      description: partial ? "Order (first installment)" : "Order",
       prefill: { name: displayName, email },
-      theme: { color: "#ff2d55" },
-      handler: () => {
+      onPaid: () => {
+        // Settlement is the webhook's job (#5); send them to their orders so
+        // they see the confirmed state rather than a claim we can't back yet.
         toast.success("Payment received! Confirming your order…");
-        setTimeout(() => router.push("/store" as never), 2500);
+        setTimeout(() => router.push("/orders" as never), 2500);
       },
-      modal: { ondismiss: () => setCheckingOut(false) },
+      onDismiss: () => setCheckingOut(false),
     });
-    rzp.open();
+
+    if (!opened) {
+      toast.error("Could not open payment.");
+    }
     setCheckingOut(false);
   }
 
@@ -151,8 +166,64 @@ export function CartView({
           <h2 className="font-display text-xl">Summary</h2>
           <div className="mt-4 flex items-center justify-between text-sm">
             <span className="text-text-muted">Subtotal</span>
-            <span className="font-mono">{formatPaise(paise(total))}</span>
+            <span className="font-mono">{formatPaise(paise(subtotal))}</span>
           </div>
+
+          {discount > 0 ? (
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-success">
+                Discount
+                {appliedCode ? (
+                  <span className="ml-1 font-mono text-xs text-text-dim">
+                    ({appliedCode})
+                  </span>
+                ) : null}
+              </span>
+              <span className="font-mono text-success">
+                −{formatPaise(paise(discount))}
+              </span>
+            </div>
+          ) : null}
+
+          {/* Discount / referral code */}
+          <div className="mt-4">
+            <Label htmlFor="cart-code" className="text-xs text-text-muted">
+              Discount or referral code
+            </Label>
+            <div className="mt-1.5 flex gap-2">
+              <Input
+                id="cart-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void applyCode();
+                  }
+                }}
+                placeholder="GRAVITY10"
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="h-9 flex-1"
+                disabled={checkingCode || appliedCode !== null}
+              />
+              {appliedCode ? (
+                <Button variant="ghost" size="sm" onClick={clearCode}>
+                  Remove
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={applyCode}
+                  disabled={checkingCode || !code.trim()}
+                >
+                  {checkingCode ? "…" : "Apply"}
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div className="gv-rule my-4" />
           <div className="flex items-center justify-between">
             <span className="font-medium">Total</span>
@@ -164,7 +235,10 @@ export function CartView({
           </Button>
           {allowPartial ? (
             <Button onClick={() => doCheckout(true)} disabled={checkingOut} variant="outline" className="mt-2 w-full">
-              Pay 50% now ({formatPaise(paise(Math.ceil(total / 2)), { compactWhole: true })})
+              {/* splitEvenly matches the server's split exactly — Math.ceil
+                  here would quote a first installment the server never charges
+                  on an odd total. */}
+              Pay half now ({formatPaise(splitEvenly(paise(total), 2)[0], { compactWhole: true })})
             </Button>
           ) : null}
         </div>

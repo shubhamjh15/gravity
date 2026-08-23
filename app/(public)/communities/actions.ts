@@ -52,14 +52,16 @@ export async function createCommunity(
       banner_path: d.banner_path ?? null,
       created_by: user.id,
     })
-    .select("slug")
+    .select("id, slug")
     .single();
 
   if (error || !comm) return fail("Could not create the community.");
 
-  // Owner is auto-added as an active member.
+  // Owner is auto-added as an active member. The id comes straight off the
+  // insert — the previous re-query by slug was an extra round trip that could
+  // also return undefined, silently inserting a member with no community.
   await supabase.from("community_members").insert({
-    community_id: (await supabase.from("communities").select("id").eq("slug", comm.slug).single()).data?.id,
+    community_id: comm.id,
     user_id: user.id,
     status: "active",
     role: "moderator",

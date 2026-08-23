@@ -4,6 +4,7 @@ import { Calendar, Users, Coins, Trophy } from "lucide-react";
 import { GlowCard } from "@/components/gravity/glow-card";
 import { formatPaise, paise } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
+import { BannerFallback } from "@/components/gravity/banner-fallback";
 
 export type EventCardData = {
   id: string;
@@ -54,7 +55,7 @@ export function EventCard({ event }: { event: EventCardData }) {
               unoptimized
             />
           ) : (
-            <div className="absolute inset-0 gv-grid-bg opacity-50" />
+            <BannerFallback seed={event.title} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-surface via-surface/20 to-transparent" />
           <span

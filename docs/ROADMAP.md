@@ -130,20 +130,18 @@ Status legend: ⬜ not started · 🟦 in progress · ✅ done
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 0.1 | Scaffold app | Next.js **16** + React 19 + TS + Tailwind v4 + Turbopack. shadcn/ui (17 primitives), Framer Motion, **GSAP+ScrollTrigger**. | ✅ |
-| 0.2 | GRAVITY shell | Root layout: **Crimson/Ember** theme, Anton+Space Grotesk+JetBrains Mono fonts, custom nav + footer + cinematic landing (hero, surfaces, pinned how-it-works, CTA). | ✅ |
+| 0.1 | Scaffold app | Next.js **16** + React 19 + TS + Tailwind v4 + Turbopack. shadcn/ui (18 primitives), Framer Motion, **GSAP+ScrollTrigger**, Lenis. | ✅ |
+| 0.2 | GRAVITY shell | Root layout: **Crimson/Ember** theme, Anton+Space Grotesk+JetBrains Mono fonts, custom nav + footer + cinematic landing. | ✅ |
 | 0.3 | Design tokens | Tailwind v4 `@theme` in `globals.css`: crimson/ember colors, 8px grid, glows, motion, custom utilities. **No orange/violet.** | ✅ |
 | 0.4 | Supabase clients | Server (async cookies), service-role, browser factories. `proxy.ts` (Next-16 renamed middleware) session refresh. | ✅ |
-| 0.5 | Google OAuth | `/login` + `/auth/callback` + `GoogleSignIn`. `handle_new_user` trigger creates profile + default role + stats. *(needs Supabase keys to run live)* | ✅ |
+| 0.5 | Google OAuth | `/login` + `/auth/callback` + `GoogleSignIn`. `handle_new_user` trigger creates profile + default role + stats. | ✅ |
 | 0.6 | Identity schema | Migration 0002: `profiles`, `profiles_private`, `user_roles`, `games`, `player_game_profiles`, `player_documents`, `player_stats`. | ✅ |
 | 0.7 | Role helpers | SQL `has_role`/`is_superadmin`/`is_organizer` (SECURITY DEFINER). `lib/auth.ts` mirrors. | ✅ |
-| 0.8 | Hidden admin gate | Migration 0005: `platform_admins` + `admin_sessions` (TOTP/IP/timeouts) + `ADMIN_URL_SEGMENT`. Seed runbook. | ✅ |
-| 0.9 | Unified ledger | Migration 0004: `ledger_entries` + single `write_ledger_entry` SECURITY DEFINER RPC (idempotent) + indexes. | ✅ |
-| 0.10 | Razorpay webhook | `app/api/webhooks/razorpay/route.ts`: raw-body HMAC verify + `webhook_events` idempotency + ledger settle. `lib/razorpay.ts`. | ✅ |
-| 0.11 | RLS deny-by-default | Migrations 0003/0005/0006: RLS on every table, scoped policies, PII locked, storage buckets. *(CI coverage + negative tests: Phase 6)* | ✅ |
-| 0.12 | Money lib | `lib/money.ts` — branded `Paise`/`Bps`, paise/bps math, INR formatting. **25 tests pass** incl. canonical split. | ✅ |
-
-**Phase 0 deliverable:** ✅ Builds clean, typechecks, 25 tests pass. Landing + login render; schema + RLS + ledger RPC + webhook written. **To go fully live:** create Supabase + Google OAuth + Razorpay test keys (SETUP.md), push migrations, then auth + test-charge run end to end.
+| 0.8 | Hidden admin gate | Migration 0005: `platform_admins` + `admin_sessions` (TOTP/IP/timeouts) + `ADMIN_URL_SEGMENT`. | ✅ |
+| 0.9 | Unified ledger | Migration 0004: `ledger_entries` + `write_ledger_entry` RPC. Hardened in 0019 (re-raises non-payment unique violations). | ✅ |
+| 0.10 | Razorpay webhook | `app/api/webhooks/razorpay/route.ts`: raw-body HMAC + `webhook_events` idempotency + ledger settle + store/registration/membership routing. | ✅ |
+| 0.11 | RLS deny-by-default | Migrations 0003/0005/0006/0009/0012/0014/0018/0022. **Negative tests: `supabase/tests/database/`.** | ✅ |
+| 0.12 | Money lib | `lib/money.ts` — branded `Paise`/`Bps`, paise/bps math, INR formatting, `splitEvenly`. | ✅ |
 
 ---
 
@@ -152,34 +150,30 @@ Status legend: ⬜ not started · 🟦 in progress · ✅ done
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 1.1 | Profile edit | Banner, avatar, name, age, gender, email, phone, UPI, per-game Player IDs + IGN. PII fields write to `profiles_private`. | ⬜ |
-| 1.2 | Completion meter | `profile_completion_pct` **derived/computed**, not hand-maintained. Drives a progress UI. | ⬜ |
-| 1.3 | Per-game profiles | `player_game_profiles`: in-game ID, IGN, ranking, kill-ratio, win-ratio per title. | ⬜ |
-| 1.4 | Earnings + stats | Previous earnings read from `ledger_entries`; kill/win ratio + matches from `player_stats`. | ⬜ |
-| 1.5 | Document upload | Gov-ID + proof-of-skill → **private bucket**, short-TTL signed URLs. Review state in `player_documents`. | ⬜ |
-| 1.6 | Public profile | Public view of a player; **all sensitive fields hidden** (enforced by RLS, not just UI). | ⬜ |
-
-Build each via `impeccable craft → polish → audit`.
+| 1.1 | Profile edit | Banner, avatar, name, age, gender, email, phone, UPI, per-game IDs. PII writes to `profiles_private`. | ✅ |
+| 1.2 | Completion meter | Migration 0007: `profile_completion_pct` derived by trigger. Drives the completion ring. | ✅ |
+| 1.3 | Per-game profiles | `player_game_profiles`: in-game ID, IGN, ranking, kill-ratio, win-ratio per title. | ✅ |
+| 1.4 | Earnings + stats | Earnings from `ledger_entries`; kills/wins/matches from `player_stats`. **Migration 0016 made `player_stats` actually update** — it was never written before. | ✅ |
+| 1.5 | Document upload | Gov-ID + proof-of-skill → private bucket, short-TTL signed URLs. | ✅ |
+| 1.6 | Public profile | `/u/[id]` — sensitive fields never queried; unreachable by RLS. | ✅ |
 
 ---
 
 ### PHASE 2 — Events + registration + prize/results (THE CORE LOOP)
-**Goal: run a real paid tournament end to end.** This is the heart of the product — give it the most care.
+**Goal: run a real paid tournament end to end.**
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 2.1 | Events schema | `events` (+ `registration_schema` jsonb, status enum, room fields, community FK), `registrations` (payment lifecycle + slot TTL + `form_data` jsonb), `prize_structures`, `event_results`, `payouts`. (SCHEMA.md §2–3.) | ⬜ |
-| 2.2 | Events listing | Filter & search, upcoming + ongoing cards, **Archives**. Server-rendered; no per-visitor realtime. | ⬜ |
-| 2.3 | Event create (organizer) | Custom banner, info, Do's & Don'ts, Rules, **dynamic registration fields** (jsonb schema), paid/free + entry fee, public/private identity, slots, referral codes, gov-ID/elite-pass toggles. | ⬜ |
-| 2.4 | Event detail page | Dedicated page with multiple join CTAs (card + page). Live slot count via deliberate realtime. | ⬜ |
-| 2.5 | Register + pay | Razorpay order → checkout → **settle on webhook** → slot reservation vs oversell guard (atomic). Free events skip payment. | ⬜ |
-| 2.6 | Prize-pool engine | Compute rank prizes + per-kill (with cap) + admin cut + organizer profit. **Validate split == collected pool.** Handle `fill_policy` under-fill. Make the canonical 50×₹40 test pass. | ⬜ |
-| 2.7 | Room credentials | Organizer enters Room ID + password → revealed to **paid players only** (RLS) → emailed (Resend) + WhatsApped. `room_released_at` stamped. | ⬜ |
-| 2.8 | Results upload | Upload leaderboard **screenshot** (private bucket) + enter rank/kills → engine computes amounts → provisional → publish on event + community page. | ⬜ |
-| 2.9 | Payouts worklist | Organizer/admin sees winners + UPI + amount. Manual mark-as-paid with **duplicate-payout guard**. Writes `payouts` + `ledger_entries`. | ⬜ |
-| 2.10 | Organizer ledger view | That organizer's transaction history (own data only, RLS-enforced). | ⬜ |
-
-**Phase 2 deliverable:** An organizer creates an event, players pay to join, the organizer releases the room, uploads results, and winners get paid — all recorded in the one ledger.
+| 2.1 | Events schema | Migration 0008: `events`, `registrations`, `prize_structures`, `event_results`, `payouts`. | ✅ |
+| 2.2 | Events listing | Filter & search, upcoming + ongoing + archives. Server-rendered, no per-visitor realtime. | ✅ |
+| 2.3 | Event create | Banner, info, Do's & Don'ts, rules, dynamic registration fields, paid/free, slots, gov-ID toggle. Live prize-split validation. | ✅ |
+| 2.4 | Event detail page | Prize breakdown, rules, multiple join CTAs, live slot count. | ✅ |
+| 2.5 | Register + pay | Razorpay order → checkout → **settle on webhook**. `reserve_slot` RPC is atomic and oversell-safe. | ✅ |
+| 2.6 | Prize-pool engine | `lib/prize.ts` — rank + per-kill with cap, admin cut, organizer profit, `fill_policy`, `kill_surplus_policy`. Canonical 50×₹40 test passes. | ✅ |
+| 2.7 | Room credentials | `get_room_credentials` RPC gated on paid participation + Resend email + **WhatsApp (`lib/whatsapp.ts`)**. | ✅ |
+| 2.8 | Results upload | Screenshot to private bucket + rank/kills → engine computes → provisional → publish. | ✅ |
+| 2.9 | Payouts worklist | Winners + amount + **audited UPI reveal** + manual mark-as-paid with duplicate guard → `payouts` + ledger. | ✅ |
+| 2.10 | Organizer ledger view | `/dashboard/finance` — collected, profit, prizes, platform fee, monthly trend, transactions, CSV export. **Migration 0019 fixed the ledger RLS + the missing revenue-split rows.** | ✅ |
 
 ---
 
@@ -188,14 +182,14 @@ Build each via `impeccable craft → polish → audit`.
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 3.1 | Communities schema | `communities`, `community_members`, `memberships`, `community_posts`, `community_gallery`, `elite_policies`. (SCHEMA.md §4.) | ⬜ |
-| 3.2 | Communities listing → page | About, location, rules, gallery, that community's games & events. | ⬜ |
-| 3.3 | Join flow | Paid/unpaid, with/without approval; shareable **invite link** (`invite_slug`). Lifecycle: pending/active/banned/left. | ⬜ |
-| 3.4 | Memberships | Admin sets cost → Razorpay → ledger. **Community monthly earning dashboard** (events + memberships). | ⬜ |
-| 3.5 | Chat schema + UI | `chat_channels`, `chat_members`, `chat_messages` (Supabase **Realtime**). Per-community channels + ad-hoc small groups. | ⬜ |
-| 3.6 | 1-v-1 match invites | `match_invites`: invite / accept / decline. (Open Q: coordination only, or stakes?) | ⬜ |
-| 3.7 | Elite policies | Gov-ID + kill-ratio proof → elite approval workflow. Role `member`/`elite`. | ⬜ |
-| 3.8 | Community admin tools | Per-community announcements; organizer edits all community + event content; community-scoped referral codes. | ⬜ |
+| 3.1 | Communities schema | Migration 0011: communities, members, memberships, posts, gallery, elite, chat, invites. | ✅ |
+| 3.2 | Communities listing → page | About, location, rules, gallery, that community's games & events. | ✅ |
+| 3.3 | Join flow | Paid/unpaid, approval, invite slug. Lifecycle pending/active/banned/left. | ✅ |
+| 3.4 | Memberships | Razorpay → webhook → ledger. Earning dashboard at `/dashboard/finance` (events + memberships). | ✅ |
+| 3.5 | Chat schema + UI | `chat_channels`/`chat_members`/`chat_messages` with Supabase Realtime. | ✅ |
+| 3.6 | 1-v-1 match invites | `/matches` + Challenge button on public profiles. **Coordination only — no stakes held.** | ✅ |
+| 3.7 | Elite policies | Migration 0022: `elite_applications` + `review_elite_application` enforcing gov-ID/kill-ratio in the DB. | ✅ |
+| 3.8 | Community admin tools | Owner-only **Manage tab**: announcements + community-scoped discount codes. Scope forced server-side so an owner can't announce globally or discount the whole store. | ✅ |
 
 ---
 
@@ -204,11 +198,11 @@ Build each via `impeccable craft → polish → audit`.
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 4.1 | Leaderboard schema | `leaderboard_snapshots`: materialized rankings by kill-ratio / win-ratio / net-earnings × scope (event/community/global) × period (daily/monthly/yearly). | ⬜ |
-| 4.2 | Leaderboard UI | Filterable by event / overall / community / daily / monthly / yearly. Reads snapshots (not live aggregation on hot path). | ⬜ |
-| 4.3 | Snapshot refresh | Cron (`pg_cron` / Vercel Cron) + refresh on result-lock. | ⬜ |
-| 4.4 | Sponsors | `sponsors` directory + `sponsorship_requests` form → routed to super-admin + targeted community admin → published. Sponsorship money → ledger. | ⬜ |
-| 4.5 | About page | `about_pages` (Tiptap JSON) + gallery + company details. Super-admin edits; public read. | ⬜ |
+| 4.1 | Leaderboard schema | Migration 0013: `leaderboard_snapshots` by metric × scope × period. | ✅ |
+| 4.2 | Leaderboard UI | Filterable, reads snapshots (not live aggregation on the hot path). | ✅ |
+| 4.3 | Snapshot refresh | `pg_cron` every 15 min **+ a statement trigger on result-publish (0016)** — this was scheduled but could never produce data before. | ✅ |
+| 4.4 | Sponsors | Directory + request form → admin inbox → published. | ✅ |
+| 4.5 | About page | `about_pages` (Tiptap JSON) + gallery + company details. | ✅ |
 
 ---
 
@@ -217,11 +211,11 @@ Build each via `impeccable craft → polish → audit`.
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 5.1 | Store schema | `store_products`, `store_categories`, `store_variants`, `store_product_images`, `store_inventory`, `store_carts`, `store_cart_items`, `store_orders`, `store_order_items`, `store_payment_schedule`, `store_payments`, `store_reviews`. (SCHEMA.md §7.) | ⬜ |
-| 5.2 | Catalog | SKUs, inventory management (stock per variant, low-stock flags), MRP vs sale price, multi-photo, description, categories. | ⬜ |
-| 5.3 | Cart + checkout | Server-side cart; discount + referral codes; checkout via Razorpay (hardened webhook → ledger). | ⬜ |
-| 5.4 | Partial payment | Installment schedule; `amount_paid` derived from captured payments. | ⬜ |
-| 5.5 | Orders + delivery | Manual delivery status. Verified-purchase reviews. | ⬜ |
+| 5.1 | Store schema | Migration 0014: catalog, variants, inventory, cart, orders, schedule, payments, reviews. | ✅ |
+| 5.2 | Catalog | **Real CRUD in the console**: products, variants, per-variant stock with low-stock flags, MRP vs sale price. | ✅ |
+| 5.3 | Cart + checkout | Server-side cart, **discount/referral codes (0021)**, Razorpay → webhook → ledger. | ✅ |
+| 5.4 | Partial payment | Installments via `splitEvenly`; `amount_paid` **derived** from captured payments (0017). `/orders` pays the balance. | ✅ |
+| 5.5 | Orders + delivery | Manual delivery ladder, guarded on payment. Verified-purchase reviews. Buyer order history at `/orders`. | ✅ |
 
 ---
 
@@ -230,12 +224,32 @@ Build each via `impeccable craft → polish → audit`.
 
 | # | Task | Detail | Status |
 |---|---|---|---|
-| 6.1 | Super-admin console | Organizer control, players directory (**audited PII reveal**), featured placements, announcements, ledger monitoring, fallback-fee config, sponsorship inbox. | ⬜ |
-| 6.2 | Revenue dashboard | Totals + by category (`source_type` fractions) + community-wise (`GROUP BY community_id`) + time-series. All from `ledger_entries`. | ⬜ |
-| 6.3 | RazorpayX payouts | Automated payouts + reconciliation (replaces manual v1 worklist). | ⬜ |
-| 6.4 | Materialized views | Heavy dashboard/leaderboard aggregations → matviews. Index ledger on `(created_at)`, `(source_type,status)`, `(community_id)`, `(event_id)`, `(user_id)`. | ⬜ |
-| 6.5 | Cron jobs | Leaderboard refresh, slot-reservation TTL sweep, installment-overdue flags, archive old events. **Never rely on a sweep for correctness.** | ⬜ |
-| 6.6 | Final hardening | `/impeccable harden` across all surfaces; final audit + detect pass; Supabase Pro upgrade before launch; WebP transcode for uploads. | ⬜ |
+| 6.1 | Super-admin console | Overview, users & roles, **audited PII reveal (0020)**, announcements + featured placements (0018), ledger monitor, sponsorship inbox, store CRUD, About editor, **platform settings** (fees in bps, slot TTL, payouts mode, feature flags, maintenance). | ✅ |
+| 6.2 | Revenue dashboard | Totals + `source_type` fractions + community-wise + time-series, all from `ledger_entries`. | ✅ |
+| 6.3 | RazorpayX payouts | Automated payouts + reconciliation (replaces the manual worklist). | ⬜ |
+| 6.4 | Materialized views | Ledger indexes done (0004). Heavy aggregations still computed in-request — **matviews not built**. | 🟦 |
+| 6.5 | Cron jobs | Migration 0015: leaderboard refresh, slot-TTL sweep, installment-overdue flags. | ✅ |
+| 6.6 | Final hardening | `/impeccable harden` pass, Supabase Pro upgrade, WebP transcode for uploads. | ⬜ |
+
+---
+
+## 4a. Verification status
+
+Run from `gravity/`:
+
+| Check | Command | Result |
+|---|---|---|
+| Build | `npm run build` | ✅ clean, 34 routes |
+| Types | `npm run typecheck` | ✅ **0 errors against real generated DB types** |
+| Unit tests | `npm test` | ✅ **170 passing** |
+| DB / RLS tests | `npm run db:test` | ✅ **50 assertions passing against the live database** |
+| Schema | `npm run db:status` | ✅ 50 tables · 110 RLS policies · RLS on every table |
+
+**The database is live.** Migrations 0001→0023 are applied to the Supabase project, reference data is seeded, and `lib/supabase/types.ts` is generated from the real catalog — so every column name and RPC signature is now compiler-checked.
+
+Running the RLS suites for the first time immediately found a live vulnerability: `anon` held column-level SELECT on `events.room_id` / `events.room_password`, so anyone could read every tournament's room password over PostgREST without paying. Closed by migration **0023**, with a permanent regression test.
+
+Still needed to transact for real: Razorpay test keys, a Resend key, and Google OAuth configured in the Supabase dashboard (see `SETUP.md`).
 
 ---
 

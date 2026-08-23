@@ -48,3 +48,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated migration bundle (regenerate with: npm run bundle:sql)
+supabase/bundle.generated.sql
+
+# build logs
+dev.log
+*.log

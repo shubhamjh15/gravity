@@ -10,6 +10,8 @@ import {
   computePayouts,
   type PrizeStructure,
   type ResultRow,
+  toFillPolicy,
+  toKillSurplusPolicy,
 } from "@/lib/prize";
 
 /**
@@ -65,8 +67,8 @@ export async function uploadResults(input: unknown): Promise<
     killBudgetCap: paise(Number(ps.kill_budget_cap_paise)),
     adminCut: paise(Number(ps.admin_cut_paise)),
     organizerProfit: paise(Number(ps.organizer_profit_paise)),
-    fillPolicy: ps.fill_policy,
-    killSurplusPolicy: ps.kill_surplus_policy,
+    fillPolicy: toFillPolicy(ps.fill_policy),
+    killSurplusPolicy: toKillSurplusPolicy(ps.kill_surplus_policy),
     maxSlots: Number(ev.max_slots),
   };
 
@@ -124,17 +126,24 @@ export async function publishResults(eventId: string): Promise<ActionResult> {
   const supabase = await createSupabaseServerClient();
   const { data: ev } = await supabase
     .from("events")
-    .select("id, organizer_id")
+    .select("id, organizer_id, entry_fee_paise, max_slots")
     .eq("id", eventId)
     .single();
   if (!ev || ev.organizer_id !== user.id) return fail("Not your tournament.");
 
-  // Flip results to published.
+  // Flip results to published. This also fires the DB triggers that recompute
+  // player_stats and rebuild the leaderboard (migration 0016).
   const { error: pubErr } = await supabase
     .from("event_results")
     .update({ status: "published" })
     .eq("event_id", eventId);
   if (pubErr) return fail("Could not publish results.");
+
+  // Record the platform cut + organizer profit against this event. Both are
+  // 'internal' ledger rows — a re-slice of entry fees already counted as gross,
+  // never new income (#3). settle_event_split is idempotent, so re-publishing
+  // can't double the books.
+  await recordEventSplit(supabase, eventId, ev);
 
   // Create pending payout rows for winners (amount > 0), resolving their UPI.
   const { data: winners } = await supabase
@@ -163,6 +172,111 @@ export async function publishResults(eventId: string): Promise<ActionResult> {
   revalidatePath(`/dashboard`);
   revalidatePath(`/events`);
   return ok(undefined, "Results published! Payouts queued.");
+}
+
+/**
+ * Resolve the winner's UPI id so the organizer can actually send the money.
+ *
+ * publishResults creates payout rows without a upi_id on purpose: UPI lives in
+ * profiles_private, which RLS restricts to the owner and superadmins (#6), so
+ * an organizer cannot select it. The audited get_payout_upi RPC re-checks
+ * ownership in the database and logs the access, so the number is available at
+ * the moment of transfer without opening PII more broadly.
+ */
+export async function revealPayoutUpi(input: {
+  payout_id: string;
+}): Promise<ActionResult<{ upi_id: string | null }>> {
+  const user = await getUser();
+  if (!user) return fail("You must be logged in.");
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = (await supabase.rpc("get_payout_upi", {
+    p_payout_id: input.payout_id,
+  })) as { data: string | null; error: { message: string } | null };
+
+  if (error) return fail("Not authorized to view this payout's UPI.");
+  if (!data) {
+    return fail("This player hasn't added a UPI ID yet — ask them to add one.");
+  }
+
+  return ok({ upi_id: data }, "UPI revealed. This access has been logged.");
+}
+
+/**
+ * Recompute this event's admin cut + organizer profit from the prize structure
+ * and the actual paid count, then record them in the ledger.
+ *
+ * The amounts must come from the engine rather than straight off
+ * prize_structures, because under-fill scaling and kill-surplus routing both
+ * change them — the configured ₹110 admin cut is not what a half-full event
+ * actually yields.
+ *
+ * Failure here is logged, not surfaced: the results ARE published by this
+ * point, and blocking the organizer on a bookkeeping row would be worse than a
+ * missing one that can be reconciled. The RPC is idempotent, so a later
+ * re-publish repairs it.
+ */
+async function recordEventSplit(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  eventId: string,
+  ev: { entry_fee_paise: number | string; max_slots: number | string },
+): Promise<void> {
+  try {
+    const { data: ps } = await supabase
+      .from("prize_structures")
+      .select("*")
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if (!ps) return;
+
+    const { data: rows } = await supabase
+      .from("event_results")
+      .select("user_id, rank, kills")
+      .eq("event_id", eventId)
+      .eq("status", "published");
+
+    const { count: paidCount } = await supabase
+      .from("registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .in("status", ["paid", "confirmed"]);
+
+    const structure: PrizeStructure = {
+      entryFee: paise(Number(ev.entry_fee_paise)),
+      rankPrizes: Object.fromEntries(
+        Object.entries((ps.rank_prizes_paise ?? {}) as Record<string, number>).map(
+          ([k, v]) => [Number(k), paise(Number(v))],
+        ),
+      ),
+      perKill: paise(Number(ps.per_kill_paise)),
+      killBudgetCap: paise(Number(ps.kill_budget_cap_paise)),
+      adminCut: paise(Number(ps.admin_cut_paise)),
+      organizerProfit: paise(Number(ps.organizer_profit_paise)),
+      fillPolicy: toFillPolicy(ps.fill_policy),
+      killSurplusPolicy: toKillSurplusPolicy(ps.kill_surplus_policy),
+      maxSlots: Number(ev.max_slots),
+    };
+
+    const resultRows: ResultRow[] = (rows ?? []).map((r) => ({
+      userId: r.user_id,
+      rank: r.rank,
+      kills: r.kills,
+    }));
+
+    const computation = computePayouts(
+      structure,
+      resultRows,
+      paidCount ?? resultRows.length,
+    );
+
+    await supabase.rpc("settle_event_split", {
+      p_event_id: eventId,
+      p_admin_cut_paise: computation.adminCut as number,
+      p_organizer_profit_paise: computation.organizerProfit as number,
+    });
+  } catch (err) {
+    console.error("recordEventSplit failed for event", eventId, err);
+  }
 }
 
 /**

@@ -2,11 +2,20 @@
 
 /**
  * Logged-in user menu (avatar + dropdown). Links to profile, my tournaments,
- * dashboard (organizers), admin (superadmins), and sign out.
+ * wallet, orders, dashboard (organizers), admin (superadmins), and sign out.
  */
 import Link from "next/link";
 import Image from "next/image";
-import { User, Trophy, LayoutDashboard, Shield, LogOut } from "lucide-react";
+import {
+  User,
+  Trophy,
+  Swords,
+  Wallet,
+  Package,
+  LayoutDashboard,
+  Shield,
+  LogOut,
+} from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import {
   DropdownMenu,
@@ -59,6 +68,21 @@ export function UserMenu({
         <DropdownMenuItem asChild>
           <Link href={"/my-tournaments" as never}>
             <Trophy className="size-4" /> My tournaments
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={"/matches" as never}>
+            <Swords className="size-4" /> Challenges
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={"/wallet" as never}>
+            <Wallet className="size-4" /> Wallet
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={"/orders" as never}>
+            <Package className="size-4" /> My orders
           </Link>
         </DropdownMenuItem>
         {isOrganizer || isSuperadmin ? (

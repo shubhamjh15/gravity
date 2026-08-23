@@ -10,7 +10,7 @@ import {
   ScrollText,
   ShieldCheck,
 } from "lucide-react";
-import { getEventBySlug } from "@/lib/data/events";
+import { getEventBySlug, rankPrizesFrom } from "@/lib/data/events";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
@@ -19,6 +19,7 @@ import { RegisterButton } from "@/components/gravity/events/register-button";
 import { RoomCredentials } from "@/components/gravity/events/room-credentials";
 import { EventResults } from "@/components/gravity/events/event-results";
 import { Spotlight } from "@/components/gravity/spotlight";
+import { BannerFallback } from "@/components/gravity/banner-fallback";
 
 export async function generateMetadata({
   params,
@@ -64,13 +65,15 @@ export default async function EventDetailPage({
   const free = Number(event.entry_fee_paise) === 0;
   const full = taken >= Number(event.max_slots);
   const closed =
-    !["upcoming", "ongoing"].includes(event.status) ||
+    !["upcoming", "ongoing"].includes(event.status ?? "") ||
     (event.registration_closes_at &&
       new Date(event.registration_closes_at) < new Date());
 
-  const rankPrizes: Record<string, number> = structure?.rank_prizes_paise ?? {};
+  // rank_prizes_paise is jsonb, so it types as the Json union rather than a
+  // keyed object — narrow it once, defensively.
+  const rankPrizes = rankPrizesFrom(structure?.rank_prizes_paise);
   const prizePool =
-    Object.values(rankPrizes).reduce((s, v) => s + Number(v ?? 0), 0) +
+    Object.values(rankPrizes).reduce<number>((sum, v) => sum + v, 0) +
     Number(structure?.kill_budget_cap_paise ?? 0);
 
   const isParticipant =
@@ -79,7 +82,7 @@ export default async function EventDetailPage({
   return (
     <article className="pb-24">
       {/* Hero banner */}
-      <div className="relative h-64 w-full overflow-hidden sm:h-80 lg:h-96">
+      <div className="relative h-48 w-full overflow-hidden sm:h-64 lg:h-72">
         {banner ? (
           <Image
             src={banner}
@@ -91,7 +94,7 @@ export default async function EventDetailPage({
             unoptimized
           />
         ) : (
-          <div className="absolute inset-0 gv-grid-bg opacity-50" />
+          <BannerFallback seed={event.title} showInitial />
         )}
         <Spotlight />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />

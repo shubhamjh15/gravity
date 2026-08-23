@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Trophy, Target, Swords, Wallet } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/auth";
 import { publicEnv } from "@/lib/env";
 import { formatPaise, paise } from "@/lib/money";
+import { ChallengeButton } from "@/components/gravity/community/challenge-button";
 
 /**
  * Public player profile. Reads ONLY public-safe data — profiles +
@@ -39,6 +41,7 @@ export default async function PublicProfilePage({
 }) {
   const { id } = await params;
   const supabase = await createSupabaseServerClient();
+  const viewer = await getUser();
 
   const [profileRes, gamesRes, gameProfilesRes, statsRes, earningsRes] =
     await Promise.all([
@@ -117,9 +120,20 @@ export default async function PublicProfilePage({
               </div>
             )}
           </div>
-          <h1 className="font-display text-3xl tracking-tight sm:text-4xl">
-            {profile.display_name ?? "Player"}
-          </h1>
+          <div className="flex flex-wrap items-center gap-4">
+            <h1 className="font-display text-3xl tracking-tight sm:text-4xl">
+              {profile.display_name ?? "Player"}
+            </h1>
+            {/* Only offer a challenge to someone else, and only when signed in
+                — the action would be rejected otherwise. */}
+            {viewer && viewer.id !== profile.id ? (
+              <ChallengeButton
+                toUserId={profile.id}
+                toName={profile.display_name ?? "this player"}
+                games={gamesRes.data ?? []}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 

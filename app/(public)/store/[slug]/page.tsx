@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Star } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
+import { ReviewForm } from "@/components/gravity/store/review-form";
 import { formatPaise, paise } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
 import { AddToCart } from "@/components/gravity/store/add-to-cart";
@@ -63,6 +64,32 @@ export default async function ProductPage({
 
   const images = (imagesRes.data ?? []).map((i) => imageUrl(i.image_path)).filter(Boolean) as string[];
   const reviews = reviewsRes.data ?? [];
+
+  /* Can this visitor review?
+   *
+   * RLS is the real gate (insert requires a DELIVERED order containing this
+   * product), so this mirrors that check purely to decide whether to render the
+   * form — showing a form that can only be refused is worse than hiding it. */
+  const viewer = await getUser();
+  let canReview = false;
+  let ownReview: { rating: number; body: string | null } | null = null;
+
+  if (viewer) {
+    const variantIds = (variantsRes.data ?? []).map((v) => v.id);
+    if (variantIds.length > 0) {
+      const { data: delivered } = await supabase
+        .from("store_orders")
+        .select("id, store_order_items!inner(variant_id)")
+        .eq("user_id", viewer.id)
+        .eq("delivery_status", "delivered")
+        .in("store_order_items.variant_id", variantIds)
+        .limit(1);
+      canReview = (delivered ?? []).length > 0;
+    }
+
+    const mine = reviews.find((r) => r.user_id === viewer.id);
+    if (mine) ownReview = { rating: mine.rating, body: mine.body };
+  }
   const avgRating =
     reviews.length > 0
       ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
@@ -104,7 +131,7 @@ export default async function ProductPage({
               {[1, 2, 3, 4, 5].map((n) => (
                 <Star
                   key={n}
-                  className={`size-4 ${n <= Math.round(avgRating) ? "fill-amber-300 text-amber-300" : "text-line-strong"}`}
+                  className={`size-4 ${n <= Math.round(avgRating) ? "fill-crimson-500 text-crimson-500" : "text-line-strong"}`}
                 />
               ))}
               <span className="ml-1 text-sm text-text-muted">({reviews.length})</span>
@@ -140,15 +167,31 @@ export default async function ProductPage({
       </div>
 
       {/* reviews */}
-      {reviews.length > 0 ? (
+      {reviews.length > 0 || canReview ? (
         <section className="mt-16">
           <h2 className="font-display text-2xl tracking-tight">Reviews</h2>
+
+          {canReview ? (
+            <div className="mt-4">
+              <ReviewForm
+                productId={product.id}
+                existingRating={ownReview?.rating}
+                existingBody={ownReview?.body ?? undefined}
+              />
+            </div>
+          ) : null}
+
+          {reviews.length === 0 ? (
+            <p className="mt-4 text-sm text-text-muted">
+              No reviews yet — yours would be the first.
+            </p>
+          ) : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {reviews.map((r, i) => (
               <div key={i} className="gv-panel p-4">
                 <div className="flex items-center gap-0.5">
                   {[1, 2, 3, 4, 5].map((n) => (
-                    <Star key={n} className={`size-3.5 ${n <= r.rating ? "fill-amber-300 text-amber-300" : "text-line-strong"}`} />
+                    <Star key={n} className={`size-3.5 ${n <= r.rating ? "fill-crimson-500 text-crimson-500" : "text-line-strong"}`} />
                   ))}
                 </div>
                 {r.body ? <p className="mt-2 text-sm text-text-muted">{r.body}</p> : null}

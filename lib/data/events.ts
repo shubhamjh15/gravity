@@ -3,6 +3,7 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import type { EventCardData } from "@/components/gravity/events/event-card";
+import type { Database, Json } from "@/lib/supabase/types";
 
 /**
  * Server data helpers for events. Reads go through the public_events view (no
@@ -19,20 +20,71 @@ export type EventFilters = {
   pageSize?: number;
 };
 
+/**
+ * Sum the advertised prize pool.
+ *
+ * `rank_prizes_paise` is a `jsonb` column, so it arrives as the generated `Json`
+ * union rather than a keyed object — it could legitimately be a string, an
+ * array, or null. Everything is coerced defensively and anything non-numeric
+ * contributes zero, so a malformed row shows an understated pool instead of
+ * rendering NaN across the listing.
+ */
 function poolFromStructure(ps: {
-  rank_prizes_paise?: Record<string, number> | null;
+  rank_prizes_paise?: Json | null;
   per_kill_paise?: number | null;
   kill_budget_cap_paise?: number | null;
   entry_fee_paise?: number | null;
 } | null): number {
   if (!ps) return 0;
-  const ranks = Object.values(ps.rank_prizes_paise ?? {}).reduce(
-    (s, v) => s + Number(v ?? 0),
-    0,
-  );
-  const killCap = Number(ps.kill_budget_cap_paise ?? 0);
+
+  const prizes = ps.rank_prizes_paise;
+  const ranks =
+    prizes && typeof prizes === "object" && !Array.isArray(prizes)
+      ? Object.values(prizes).reduce<number>((sum, v) => sum + toNumber(v), 0)
+      : 0;
+
+  const killCap = toNumber(ps.kill_budget_cap_paise);
   // Displayed "prize pool" = what players can win = ranks + kill budget.
   return ranks + killCap;
+}
+
+/**
+ * Narrow a `rank_prizes_paise` jsonb value into a rank -> paise map.
+ * Non-numeric or malformed entries are dropped rather than becoming NaN.
+ */
+export function rankPrizesFrom(value: Json | null | undefined): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, number> = {};
+  for (const [rank, amount] of Object.entries(value)) {
+    const n = Number(amount ?? 0);
+    if (Number.isFinite(n) && n > 0) out[rank] = n;
+  }
+  return out;
+}
+
+function toNumber(value: unknown): number {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * `public_events` is a VIEW, so Postgres reports every column as nullable even
+ * though the underlying `events` columns are NOT NULL — the generated types
+ * reflect that faithfully. This narrows a view row back to the shape the rest of
+ * the app expects, dropping any row missing an identity column rather than
+ * rendering a card that links nowhere.
+ */
+type PublicEventRow = Database["public"]["Views"]["public_events"]["Row"];
+
+/** A view row with the identity columns the UI can't render without. */
+export type RenderableEvent = PublicEventRow & {
+  id: string;
+  slug: string;
+  title: string;
+};
+
+function isRenderable(row: PublicEventRow): row is RenderableEvent {
+  return Boolean(row.id && row.slug && row.title);
 }
 
 export async function listEvents(filters: EventFilters = {}): Promise<{
@@ -65,7 +117,7 @@ export async function listEvents(filters: EventFilters = {}): Promise<{
   }
 
   const { data: rows, count } = await query;
-  const events = rows ?? [];
+  const events = ((rows ?? []) as PublicEventRow[]).filter(isRenderable);
   if (events.length === 0) return { events: [], total: count ?? 0 };
 
   const ids = events.map((e) => e.id);
@@ -96,12 +148,12 @@ export async function listEvents(filters: EventFilters = {}): Promise<{
     slug: e.slug,
     title: e.title,
     banner_path: e.banner_path,
-    game_name: gameName(e.game_id),
-    entry_fee_paise: Number(e.entry_fee_paise),
+    game_name: gameName(e.game_id ?? ""),
+    entry_fee_paise: toNumber(e.entry_fee_paise),
     prize_pool_paise: poolFromStructure(structureFor(e.id)),
-    max_slots: Number(e.max_slots),
+    max_slots: toNumber(e.max_slots),
     taken: takenFor(e.id),
-    status: e.status,
+    status: e.status ?? "upcoming",
     starts_at: e.starts_at,
   }));
 
@@ -111,20 +163,34 @@ export async function listEvents(filters: EventFilters = {}): Promise<{
 export async function getEventBySlug(slug: string) {
   if (!isSupabaseConfigured()) return null;
   const supabase = await createSupabaseServerClient();
-  const { data: event } = await supabase
+  const { data: raw } = await supabase
     .from("public_events")
     .select("*")
     .eq("slug", slug)
     .single();
-  if (!event) return null;
+  if (!raw) return null;
+
+  // Same view-nullability narrowing as the listing: without an id there is
+  // nothing to join against, so treat it as not found.
+  const event = raw as PublicEventRow;
+  if (!isRenderable(event)) return null;
+  const eventId = event.id;
 
   const [gameRes, structureRes, regsRes] = await Promise.all([
-    supabase.from("games").select("id, name").eq("id", event.game_id).single(),
-    supabase.from("prize_structures").select("*").eq("event_id", event.id).single(),
+    supabase
+      .from("games")
+      .select("id, name")
+      .eq("id", event.game_id ?? "")
+      .maybeSingle(),
+    supabase
+      .from("prize_structures")
+      .select("*")
+      .eq("event_id", eventId)
+      .maybeSingle(),
     supabase
       .from("registrations")
       .select("status")
-      .eq("event_id", event.id)
+      .eq("event_id", eventId)
       .in("status", ["paid", "confirmed", "slot_held"]),
   ]);
 

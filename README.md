@@ -34,7 +34,7 @@ There is **no official Free Fire / BGMI API** for third parties. So GRAVITY work
 - **Supabase** — Postgres, Auth (Google OAuth), Storage, Realtime, **RLS on every table**
 - **Razorpay** — entry fees, memberships, store; payouts manual in v1
 - **Resend** + WhatsApp — room-credential delivery
-- **Vitest** — 119 unit tests (money, prize engine, validators)
+- **Vitest** — 170 unit tests · **pgTAP** — RLS + settlement suites
 
 ## Architecture principles (non-negotiable)
 
@@ -64,13 +64,14 @@ See [`docs/SETUP.md`](docs/SETUP.md) for creating the Supabase project, running 
 |---|---|
 | `npm run dev` | Dev server (Turbopack) |
 | `npm run build` | Production build |
-| `npm run test` | Vitest suite (119 tests) |
+| `npm run test` | Vitest suite (170 tests) |
+| `supabase test db` | pgTAP RLS + settlement suites (needs a live DB) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 
 ### Database
 
-Migrations live in [`supabase/migrations/`](supabase/migrations/) (0001 → 0015). Apply them in order, then run `supabase/seed.sql` (reference data) and optionally `supabase/seed_demo.sql` (a populated demo catalog).
+Migrations live in [`supabase/migrations/`](supabase/migrations/) (0001 → 0022). Apply them in order, then run `supabase/seed.sql` (reference data) and optionally `supabase/seed_demo.sql` (a populated demo catalog).
 
 ---
 
@@ -85,7 +86,7 @@ app/
   api/webhooks/ the one money ingestion path
 components/gravity/  brand kit + per-domain UI
 lib/          money, prize engine, auth, supabase clients, validators, data helpers
-supabase/     SQL migrations + seeds
+supabase/     SQL migrations + seeds + pgTAP tests
 docs/         ROADMAP, SCHEMA, SETUP
 ```
 

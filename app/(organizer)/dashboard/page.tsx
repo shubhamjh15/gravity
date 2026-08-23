@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
 import { SectionHeading } from "@/components/gravity/section-heading";
+import { PublishEventButton } from "@/components/gravity/organizer/publish-event-button";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "Organizer Dashboard" };
@@ -29,9 +30,11 @@ export default async function DashboardPage() {
 
   const events = eventsRes.data ?? [];
 
-  // Organizer profit from the ledger.
+  // Organizer profit from the ledger. These rows carry direction 'internal' —
+  // they re-slice entry fees already counted as gross, so filtering on 'in'
+  // (as this did) matched nothing and the figure always read ₹0.
   const profit = (earningsRes.data ?? [])
-    .filter((r) => r.source_type === "organizer_profit" && r.direction === "in")
+    .filter((r) => r.source_type === "organizer_profit")
     .reduce((s, r) => s + Number(r.amount_paise ?? 0), 0);
 
   const liveCount = events.filter((e) =>
@@ -47,11 +50,18 @@ export default async function DashboardPage() {
           lead="Create tournaments, manage registrations, publish results and pay winners."
           as="h1"
         />
-        <Button asChild variant="gradient" size="lg">
-          <Link href={"/dashboard/create" as never}>
-            <Plus className="size-4" /> New tournament
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="lg">
+            <Link href={"/dashboard/finance" as never}>
+              <Wallet className="size-4" /> Finances
+            </Link>
+          </Button>
+          <Button asChild variant="gradient" size="lg">
+            <Link href={"/dashboard/create" as never}>
+              <Plus className="size-4" /> New tournament
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* stats */}
@@ -106,7 +116,13 @@ export default async function DashboardPage() {
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="rounded-full border border-line px-2 py-0.5 text-[11px] capitalize">
+                    <span
+                      className={
+                        e.status === "draft"
+                          ? "rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-[11px] text-warning capitalize"
+                          : "rounded-full border border-line px-2 py-0.5 text-[11px] capitalize"
+                      }
+                    >
                       {e.status}
                     </span>
                   </td>
@@ -116,9 +132,16 @@ export default async function DashboardPage() {
                       : formatPaise(paise(Number(e.entry_fee_paise)), { compactWhole: true })}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/dashboard/manage/${e.id}` as never}>Manage</Link>
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      {/* A draft is invisible to players until it is published,
+                          and publish is where the prize split is re-validated. */}
+                      {e.status === "draft" ? (
+                        <PublishEventButton eventId={e.id} size="sm" />
+                      ) : null}
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/dashboard/manage/${e.id}` as never}>Manage</Link>
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}

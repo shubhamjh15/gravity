@@ -171,7 +171,7 @@ is_event_paid_participant(uid, eid) -> boolean -- registered + paid (gates room 
 `id, owner_id (organizer), name, slug UNIQUE, profile_pic_path, banner_path, about, location, address, rules, visibility (public/private), is_paid bool, requires_approval bool, membership_cost_paise bigint, invite_slug text UNIQUE, is_featured bool [admin-only], is_restricted bool [admin-only]`. **RLS:** public read public communities; owner writes own; `is_featured`/`is_restricted` writable by superadmin only.
 
 ### `community_members`
-`id, community_id, user_id, status (pending/active/banned/left), role (member/elite), joined_via (direct/invite/paid)`. UNIQUE (community_id, user_id). **RLS:** member reads own membership; community owner manages members.
+`id, community_id, user_id, status (pending/active/banned/left), role (member/elite/moderator), joined_via (direct/invite/paid)`. `moderator` is the owner's own row, written when the community is created.. UNIQUE (community_id, user_id). **RLS:** member reads own membership; community owner manages members.
 
 ### `memberships` — paid membership records
 `id, community_id, user_id, amount_paise, status, ledger_entry_id FK, period_start, period_end`. Feeds the community earning dashboard. (Open Q: recurring vs one-time.)
@@ -343,6 +343,129 @@ sponsors / sponsorship_requests ────────────────
                                                              │
                                           revenue dashboard = GROUP BY on this
 ```
+
+---
+
+---
+
+## 11. Migrations 0016–0022 (correctness + completeness pass)
+
+Added after an audit found several tables written by nothing, and several
+documented tables that existed in no migration at all.
+
+### 0016 — `player_stats` maintenance
+`player_stats` was created zero-filled at signup and **never updated**, so the
+profile, the public player page and `refresh_leaderboard()` (which rebuilds
+snapshots *from* it) all read zeros forever.
+
+- `recompute_player_stats(uuid)` — rebuilds one player from scratch:
+  kills/wins/matches from **published** `event_results`, `net_earnings_paise`
+  from **settled prize payouts in the ledger** (#3 — money won is not earnings
+  until it moves). Full recompute, never a delta, so it is idempotent.
+- Row triggers on `event_results` (covering the OLD user on UPDATE) and on
+  `ledger_entries` (scoped to prize payouts).
+- A **statement** trigger with a transition table rebuilds the leaderboard once
+  per publish rather than once per winner.
+- Locks down `refresh_leaderboard()`, which 0013 left with PUBLIC execute.
+
+### 0017 — Store settlement
+`store_payments` was never written, schedules never advanced,
+`amount_paid_paise` never derived, and stock never decremented.
+
+- `settle_store_payment(order, payment_id, amount, ledger_id, schedule_id)` —
+  locks the order, dedupes on `razorpay_payment_id`, marks the installment
+  paid, and **derives** `amount_paid_paise` + status from captured payments.
+  Commits stock exactly once (`store_orders.inventory_committed_at`) and clears
+  the purchased lines from the buyer's cart on confirmed payment.
+- New unique index `uq_store_payment_rzp`.
+
+### 0018 — `announcements` + `featured_placements`
+Both were specified in §7 and existed in **no migration**. CHECK constraints
+pair `scope` to `scope_id` and keep the active window ordered. Superadmins
+write anywhere; community owners only within their own community.
+
+### 0019 — Event revenue split + organizer ledger visibility
+`platform_fee` and `organizer_profit` ledger rows were **never written**, and
+the ledger read policy was never widened past `user_id = auth.uid()` (0004's
+comment deferred it to "the community phase"; it never happened).
+
+- `settle_event_split(event, admin_cut, organizer_profit)` — records both once,
+  at result-publish, with `direction = 'internal'` (a re-slice of gross, not
+  new income). Idempotent, backed by `uq_ledger_event_split`.
+- `write_ledger_entry` now **re-raises** any unique violation it can't resolve
+  as a payment replay, instead of silently returning NULL.
+- Ledger reads widened to rows the caller owns: own `user_id`, own
+  `organizer_id`, owned event, owned community, or superadmin.
+
+### 0020 — Audited PII access (#6)
+The RLS on `profiles_private` stays exactly as strict; these are the only doors
+through it, and each writes to `audit_log`:
+
+- `get_event_contact_phones(event)` — paid participants only, event owner only.
+  For server-side WhatsApp delivery; never rendered to the organizer.
+- `reveal_player_pii(user, reason)` — superadmin only. Audits **before**
+  returning. Excludes `gov_id_doc_path`.
+- `get_payout_upi(payout)` — event owner or superadmin, for manual transfer.
+
+### 0021 — Referral / discount codes, corrected
+0015's `redeem_code` used **float money math**, ignored `scope`/`scope_id`
+entirely, and consumed the code before payment settled.
+
+- `preview_code(code, base, scope, scope_id)` — read-only validation, integer
+  math, scope-aware, returns a reason code.
+- `redeem_code_for_user(code_id, user_id)` — records the use at settlement
+  (the webhook has no `auth.uid()`). Idempotent, locks the code row.
+- `registrations` and `store_orders` gain `referral_code_id` + `discount_paise`.
+
+### 0022 — `elite_applications` (ROADMAP 3.7)
+`elite_policies` existed with nowhere to record a request.
+
+- `elite_applications` — one per member per community, with a
+  `kill_ratio_claimed` snapshot so a later stat change can't rewrite the basis
+  of a decision.
+- `review_elite_application(id, approve, note)` — enforces the community's own
+  policy in the DB (`requires_gov_id` → `kyc_status`, `min_kill_ratio` → best
+  per-game ratio) before promoting `community_members.role` to `elite`. Reads
+  PII the community owner must never see, so only the verdict escapes (#6).
+
+
+### 0023 — Room credential lockdown (SECURITY)
+
+RLS is ROW-level. The `events: anon read public` policy grants anonymous
+visitors every public event row, and Supabase's default
+`grant all on all tables to anon, authenticated` handed over every COLUMN with
+it — including `room_id` and `room_password`. This worked unauthenticated:
+
+```
+GET /rest/v1/events?select=room_id,room_password&status=eq.upcoming
+```
+
+Anyone could read every tournament's room password without paying. The
+`public_events` view and `get_room_credentials` RPC both existed to protect
+those columns; nothing stopped a client querying the base table by name.
+
+The fix replaces the blanket grant with column-level SELECT on every column
+**except** the two secrets, built dynamically so it stays correct as columns
+are added. **Any future secret column must be added to the exclusion list in
+that migration.** It also strips capabilities no role should hold — notably
+`TRUNCATE`, which is not subject to RLS at all — across `events`,
+`profiles_private`, `audit_log`, `app_settings` and `ledger_entries`.
+
+Found by `02_rls_money.test.sql` the first time the suites ran against a real
+database, and now covered by a permanent regression test.
+
+---
+
+## 12. Tests
+
+`supabase/tests/database/` (pgTAP, run with `supabase test db`):
+
+| File | Covers |
+|---|---|
+| `00_helpers.sql` | `tests.login_as` / `logout` / `as_owner` / `create_user`. **RLS is bypassed by the table owner — a test that forgets to switch role passes while proving nothing.** |
+| `01_rls_identity.test.sql` | Cross-player PII reads, UPI tampering, self-granting roles, role enumeration, `player_stats` tampering, and the structural guards (no `role`/`upi_id`/`phone` on `profiles`). |
+| `02_rls_money.test.sql` | Direct ledger INSERT refused, RPC idempotency + negative amounts, ledger visibility per role, room-credential exposure, slot oversell, duplicate registration, duplicate payout. |
+| `03_settlement.test.sql` | The three derive-don't-accumulate paths (`player_stats`, `settle_event_split`, `settle_store_payment`), each asserted idempotent. |
 
 ---
 

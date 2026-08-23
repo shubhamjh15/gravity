@@ -20,14 +20,27 @@ export default async function ManageEventPage({
   const user = await requireUser(`/dashboard/manage/${id}`);
   const supabase = await createSupabaseServerClient();
 
+  // Explicit column list, NOT select("*"): migration 0023 revoked the
+  // anon/authenticated SELECT grant on room_id and room_password, so a star
+  // select here would fail with "permission denied for column". The organizer
+  // reads their own credentials through get_room_credentials() below, which is
+  // SECURITY DEFINER and checks ownership.
   const { data: event } = await supabase
     .from("events")
-    .select("*")
+    .select(
+      "id, organizer_id, community_id, game_id, title, slug, banner_path, description, dos_and_donts, rules, registration_schema, entry_fee_paise, max_slots, visibility, status, requires_approval, gov_id_required, room_released_at, registration_opens_at, registration_closes_at, starts_at, ends_at, created_at",
+    )
     .eq("id", id)
     .single();
 
   if (!event) notFound();
   if (event.organizer_id !== user.id) redirect("/dashboard");
+
+  // Room credentials via the entitled-only RPC.
+  const { data: roomRows } = (await supabase.rpc("get_room_credentials", {
+    p_event_id: id,
+  })) as { data: { room_id: string | null }[] | null };
+  const currentRoomId = roomRows?.[0]?.room_id ?? null;
 
   // Registrations (organizer can read own event's by RLS) + participant names.
   const { data: regs } = await supabase
@@ -98,7 +111,7 @@ export default async function ManageEventPage({
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <RoomSetter
           eventId={event.id}
-          initialRoomId={event.room_id}
+          initialRoomId={currentRoomId}
           released={Boolean(event.room_released_at)}
         />
 

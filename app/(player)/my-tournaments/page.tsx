@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
 import { SectionHeading } from "@/components/gravity/section-heading";
+import { CancelRegistrationButton } from "@/components/gravity/events/cancel-registration-button";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "My Tournaments" };
@@ -74,13 +75,20 @@ export default async function MyTournamentsPage() {
             const result = resultFor(r.event_id);
             if (!ev) return null;
             return (
-              <Link
+              <div
                 key={r.id}
-                href={`/events/${ev.slug}` as never}
                 className="gv-card-accent flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-display text-lg">{ev.title}</p>
+                  {/* The row used to be one big <Link>; the cancel control is a
+                      dialog trigger and would have navigated instead of
+                      opening, so only the title links now. */}
+                  <Link
+                    href={`/events/${ev.slug}` as never}
+                    className="truncate font-display text-lg transition-colors hover:text-crimson-300"
+                  >
+                    {ev.title}
+                  </Link>
                   <div className="mt-1 flex items-center gap-3 text-xs text-text-muted">
                     {ev.starts_at ? (
                       <span className="flex items-center gap-1">
@@ -118,8 +126,20 @@ export default async function MyTournamentsPage() {
                   >
                     {r.status.replace("_", " ")}
                   </span>
+
+                  {/* Only while it's still self-service. Once the tournament is
+                      done, or already cancelled, backing out is a refund
+                      conversation with the organizer — not a button. */}
+                  {["slot_held", "paid", "confirmed", "waitlisted"].includes(r.status) &&
+                  ["upcoming", "ongoing"].includes(ev.status ?? "") ? (
+                    <CancelRegistrationButton
+                      registrationId={r.id}
+                      eventTitle={ev.title ?? "this tournament"}
+                      paid={["paid", "confirmed"].includes(r.status)}
+                    />
+                  ) : null}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

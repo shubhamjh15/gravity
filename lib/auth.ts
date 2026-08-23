@@ -129,3 +129,21 @@ export async function getAuthContext() {
     isOrganizer: roles.includes("organizer"),
   };
 }
+
+/**
+ * Where a user belongs after signing in.
+ *
+ * Most privileged role wins, so an organizer who is also a superadmin lands in
+ * the console. An explicit `next` always takes precedence — it's how "log in to
+ * continue" returns you to the page you wanted.
+ *
+ * Lives here rather than in app/auth/actions.ts because that file is
+ * "use server": EVERY export from a server-action module must be an async
+ * function, and a synchronous helper there is a build error. tsc doesn't check
+ * that rule — only the Next compiler does.
+ */
+export function landingPathForRoles(roles: Role[]): string {
+  if (roles.includes("superadmin")) return "/admin";
+  if (roles.includes("organizer")) return "/dashboard";
+  return "/profile";
+}

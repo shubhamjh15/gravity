@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Users, MapPin, ScrollText, Calendar } from "lucide-react";
 import { getCommunityBySlug } from "@/lib/data/communities";
+import { getLiveAnnouncements } from "@/lib/data/announcements";
+import { AnnouncementBanner } from "@/components/gravity/announcement-banner";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/auth";
 import { formatPaise, paise } from "@/lib/money";
@@ -11,6 +13,14 @@ import { publicEnv } from "@/lib/env";
 import { JoinButton } from "@/components/gravity/community/join-button";
 import { CommunityChat } from "@/components/gravity/community/community-chat";
 import { CommunityFeed } from "@/components/gravity/community/community-feed";
+import {
+  ElitePanel,
+  type EliteApplication,
+} from "@/components/gravity/community/elite-panel";
+import {
+  CommunityAdminPanel,
+  type CommunityCode,
+} from "@/components/gravity/community/community-admin-panel";
 import { Spotlight } from "@/components/gravity/spotlight";
 import {
   Tabs,
@@ -18,6 +28,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { BannerFallback } from "@/components/gravity/banner-fallback";
 
 export async function generateMetadata({
   params,
@@ -48,15 +59,17 @@ export default async function CommunityDetailPage({
 
   // Membership + name map.
   let membershipStatus: string | undefined;
+  let membershipRole: string | undefined;
   if (user) {
     const supabase = await createSupabaseServerClient();
     const { data: m } = await supabase
       .from("community_members")
-      .select("status")
+      .select("status, role")
       .eq("community_id", community.id)
       .eq("user_id", user.id)
       .maybeSingle();
     membershipStatus = m?.status;
+    membershipRole = m?.role;
   }
 
   const memberIds = [...new Set([...members.map((m) => m.user_id), ...posts.map((p) => p.author_id)])];
@@ -73,21 +86,67 @@ export default async function CommunityDetailPage({
   const isMember = membershipStatus === "active";
   const isOwner = user?.id === community.owner_id;
 
+  // Elite tier (ROADMAP 3.7). RLS scopes the applications read: an applicant
+  // gets their own row, the owner gets the whole queue, everyone else nothing.
+  const [elitePolicyRes, eliteAppsRes] = await Promise.all([
+    supabase
+      .from("elite_policies")
+      .select("requires_gov_id, min_kill_ratio, rules")
+      .eq("community_id", community.id)
+      .maybeSingle(),
+    user
+      ? supabase
+          .from("elite_applications")
+          .select("id, user_id, status, kill_ratio_claimed, note, review_note")
+          .eq("community_id", community.id)
+          .is("deleted_at", null)
+      : Promise.resolve({ data: [] as EliteApplication[] }),
+  ]);
+
+  const eliteApps = (eliteAppsRes.data ?? []) as EliteApplication[];
+  const eliteQueue: EliteApplication[] = eliteApps.map((a) => ({
+    ...a,
+    applicant_name: nameMap[a.user_id] ?? "Player",
+  }));
+  const myEliteApplication =
+    eliteQueue.find((a) => a.user_id === user?.id) ?? null;
+
+  // Owner-only tools (ROADMAP 3.8). Codes are scoped to this community; RLS
+  // restricts writes to the creator, so this read is just for the listing.
+  const { data: codeRows } = isOwner
+    ? await supabase
+        .from("referral_codes")
+        .select("id, code, discount_kind, discount_value, max_uses, used_count, is_active")
+        .eq("scope", "community")
+        .eq("scope_id", community.id)
+        .order("created_at", { ascending: false })
+    : { data: [] as CommunityCode[] };
+  const communityCodes = (codeRows ?? []) as CommunityCode[];
+
+  // Announcements live HERE rather than in the public layout: a platform notice
+  // above a marketing hero reads as an error bar, but inside a community it is
+  // exactly what a member came for. getLiveAnnouncements returns global notices
+  // alongside this community's own, already window-filtered in SQL.
+  const announcements = await getLiveAnnouncements({
+    scope: "community",
+    scopeId: community.id,
+  });
+
   return (
     <article className="pb-24">
       {/* hero */}
-      <div className="relative h-52 w-full overflow-hidden sm:h-72">
+      <div className="relative h-40 w-full overflow-hidden sm:h-56">
         {banner ? (
           <Image src={banner} alt="" fill priority className="object-cover" sizes="100vw" unoptimized />
         ) : (
-          <div className="absolute inset-0 gv-grid-bg opacity-50" />
+          <BannerFallback seed={community.name} showInitial />
         )}
         <Spotlight />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="-mt-16 flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end">
           <div className="size-28 shrink-0 overflow-hidden rounded-2xl border-2 border-background bg-surface-2 shadow-glow sm:size-32">
             {pic ? (
               <Image src={pic} alt="" width={128} height={128} className="size-full object-cover" unoptimized />
@@ -117,12 +176,13 @@ export default async function CommunityDetailPage({
           </div>
           <div className="w-full sm:w-56">
             {isOwner ? (
-              <Link
-                href={`/communities/${community.slug}/manage` as never}
-                className="block w-full rounded-lg border border-line bg-surface-2 px-6 py-3 text-center font-semibold transition-colors hover:border-crimson-500"
-              >
-                Manage
-              </Link>
+              // Owner tools live in the Manage tab below. This used to link to
+              // /communities/[slug]/manage, a route that was never built — a
+              // 404 for every community owner.
+              <p className="rounded-lg border border-line bg-surface-2 px-6 py-3 text-center text-sm text-text-muted">
+                You own this community — see the{" "}
+                <span className="font-semibold text-crimson-300">Manage</span> tab.
+              </p>
             ) : user ? (
               <JoinButton
                 communityId={community.id}
@@ -147,12 +207,20 @@ export default async function CommunityDetailPage({
 
         {/* tabs */}
         <div className="mt-8">
+          {announcements.length > 0 ? (
+            <div className="mb-6">
+              <AnnouncementBanner announcements={announcements} />
+            </div>
+          ) : null}
+
           <Tabs defaultValue="feed">
             <TabsList className="w-full justify-start overflow-x-auto">
               <TabsTrigger value="feed">Feed</TabsTrigger>
               <TabsTrigger value="events">Events</TabsTrigger>
               <TabsTrigger value="chat">Chat</TabsTrigger>
+              <TabsTrigger value="elite">Elite</TabsTrigger>
               <TabsTrigger value="rules">Rules</TabsTrigger>
+              {isOwner ? <TabsTrigger value="manage">Manage</TabsTrigger> : null}
             </TabsList>
 
             <TabsContent value="feed" className="mt-6">
@@ -211,6 +279,27 @@ export default async function CommunityDetailPage({
                 <p className="text-sm text-text-muted">Log in and join to chat.</p>
               )}
             </TabsContent>
+
+            <TabsContent value="elite" className="mt-6">
+              <ElitePanel
+                communityId={community.id}
+                isOwner={isOwner}
+                isActiveMember={isMember}
+                isElite={membershipRole === "elite"}
+                policy={elitePolicyRes.data ?? null}
+                myApplication={myEliteApplication}
+                queue={eliteQueue}
+              />
+            </TabsContent>
+
+            {isOwner ? (
+              <TabsContent value="manage" className="mt-6">
+                <CommunityAdminPanel
+                  communityId={community.id}
+                  codes={communityCodes}
+                />
+              </TabsContent>
+            ) : null}
 
             <TabsContent value="rules" className="mt-6">
               <div className="gv-panel p-6">
