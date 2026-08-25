@@ -87,17 +87,36 @@ export function isGateConfigured(): boolean {
  * The cookie carries `<sessionId>.<hmac>`; the id alone is useless without a
  * signature made with the server key, so a guessed or copied id won't open
  * anything. httpOnly keeps it away from any script on the page.
+ *
+ * NOTE the indirection: admin_sessions.admin_id references PLATFORM_ADMINS.id,
+ * not auth.users.id. The allowlist row is its own record — being a superadmin
+ * is not the same as being on the console allowlist, and the session hangs off
+ * the allowlist entry so removing someone from it drops their live sessions
+ * via ON DELETE CASCADE.
  */
-export async function openAdminSession(adminId: string): Promise<void> {
+export async function openAdminSession(userId: string): Promise<void> {
   const supabase = createSupabaseServiceRoleClient();
   const h = await headers();
 
+  const { data: allowlisted } = await supabase
+    .from("platform_admins")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!allowlisted) {
+    throw new Error(
+      "Not on the platform_admins allowlist. Run: npm run db:promote <email> superadmin",
+    );
+  }
+
   const expiresAt = new Date(Date.now() + SESSION_TTL_MINUTES * 60_000);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("admin_sessions")
     .insert({
-      admin_id: adminId,
+      admin_id: allowlisted.id,
       ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
       user_agent: h.get("user-agent") ?? null,
       expires_at: expiresAt.toISOString(),
@@ -106,7 +125,13 @@ export async function openAdminSession(adminId: string): Promise<void> {
     .select("id")
     .single();
 
-  if (!data) throw new Error("Could not open an admin session.");
+  if (error || !data) {
+    // Surface the real reason — a silent generic failure here is what made
+    // this bug take three checks to find.
+    throw new Error(
+      `Could not open an admin session: ${error?.message ?? "no row returned"}`,
+    );
+  }
 
   const jar = await cookies();
   jar.set(COOKIE, `${data.id}.${sign(data.id)}`, {
@@ -120,7 +145,7 @@ export async function openAdminSession(adminId: string): Promise<void> {
   await supabase.rpc("write_audit_log", {
     p_action: "admin_gate_unlocked",
     p_target_table: "admin_sessions",
-    p_target_id: adminId,
+    p_target_id: userId,
   });
 }
 
