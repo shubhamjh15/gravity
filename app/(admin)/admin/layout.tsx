@@ -1,15 +1,20 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, Users, Handshake, Receipt, FileText, ShoppingBag, Megaphone, Settings, BadgeCheck } from "lucide-react";
-import { getAuthContext } from "@/lib/auth";
 import { hasAdminSession, isGateConfigured } from "@/lib/admin-gate";
+import { AdminGateForm } from "@/components/gravity/admin/admin-gate-form";
+import { AuroraBackground } from "@/components/gravity/aurora-background";
 import { Logo } from "@/components/gravity/logo";
 
 /**
- * Super-admin console layout. Lives at an obscure path; the REAL gate is the
- * superadmin RLS + this server-side check (#4 — hidden URL is cosmetic). Non-
- * superadmins are bounced to home with a 404-ish redirect so the area's
- * existence isn't confirmed.
+ * Super-admin console layout, gated by a password at /admin.
+ *
+ * Without a session this renders the login form IN PLACE of the console, so
+ * /admin is a real destination rather than a redirect.
+ *
+ * The password opens the door; it does not grant permissions. Every query
+ * underneath still runs through RLS as whoever is signed in, so someone who
+ * knows the password but holds no superadmin role sees the shell with empty
+ * data. Password = the door, role = the filing cabinets.
  */
 const NAV = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -28,19 +33,13 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isSuperadmin } = await getAuthContext();
-
-  // The role is the authorization; RLS enforces it on every query underneath.
-  // Anyone without it is sent home rather than told the console exists.
-  if (!user || !isSuperadmin) {
-    redirect("/");
+  // An unset password FAILS CLOSED — a missing secret must never mean "no lock".
+  if (!isGateConfigured()) {
+    return <AdminGateLocked configured={false} />;
   }
 
-  // Second factor: even a real superadmin needs an unlocked gate session, so a
-  // borrowed or stolen login alone cannot open the console. Unconfigured gates
-  // fail CLOSED — a missing secret must not mean "no lock".
-  if (!isGateConfigured() || !(await hasAdminSession())) {
-    redirect("/");
+  if (!(await hasAdminSession())) {
+    return <AdminGateLocked configured />;
   }
 
   return (
@@ -91,5 +90,39 @@ export default async function AdminLayout({
         <main className="flex-1 p-4 sm:p-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+/**
+ * The console's locked state — a password prompt rendered where the console
+ * would be, so /admin is somewhere you land rather than somewhere you bounce
+ * off.
+ */
+function AdminGateLocked({ configured }: { configured: boolean }) {
+  return (
+    <section className="relative flex min-h-[100svh] items-center justify-center overflow-hidden px-4 py-20">
+      <AuroraBackground />
+      <div className="relative z-10 w-full max-w-sm">
+        <div className="gv-panel p-8">
+          <div className="flex flex-col items-center text-center">
+            <Logo size="lg" href="/" />
+            <h1 className="mt-8 font-display text-2xl tracking-tight">
+              Control room
+            </h1>
+            <p className="mt-2 text-sm text-text-muted">
+              {configured
+                ? "Enter the admin password to continue."
+                : "ADMIN_PASSWORD isn't set, so the console is closed. Add it to your environment and restart."}
+            </p>
+          </div>
+
+          {configured ? (
+            <div className="mt-8">
+              <AdminGateForm />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }
